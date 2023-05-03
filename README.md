@@ -9,6 +9,14 @@
 - There are < 19^9 accounts.
 - Each account have roughly 0.1 unmatched buy or sell order at any given time.
 
+## Running instructions
+- Compile:
+```cargo build```
+- Launch a single coordinator:
+ ```cargo run -- -c```
+- Launch at least 2 market database servers:
+```cargo run -- -n```
+
 ## Approaches
 1. Each node have local database (CHOSEN)
     - Each Node have its own copy of all buy and sell order on the market.
