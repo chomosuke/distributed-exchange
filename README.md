@@ -103,4 +103,6 @@ The Coordinator:
 Find Node for account.
 Create accounts.
 
+We have 3 executable: coordinator, node, client. Client is optional.
+
 ### Coordinator failure
