@@ -79,11 +79,11 @@ UserID, TradeID and Ticker can be objects of some sort.
 ## Example runs of the protocol
 Assume M1 and M2 are nodes.
 
-e.g. M1 recieves a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M1 recieves a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
+e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
+     M1 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
 
-e.g. M1 recieves a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M2 recieves a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
+e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
+     M2 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
      M1 sends a TRADE_CONFIRMED to all M. => M messages.
 
 ## Fault tolerance
@@ -92,7 +92,7 @@ We store everything important: money, stock, order from their own account.
 When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.
 
 If a Node already sent out a trade offer, it can't commit or abort without a trade reply.
-If a Node receive a trade offer, it can commit or abort immediately before sending the trade reply.
+If a Node receives a trade offer, it can commit or abort immediately before sending the trade reply.
 When a node crash, all the transactions that involve that node can't be committed or aborted. But all the account that node owns can't do anything as well, so it's not that much worse.
 
 ## Coordinator
@@ -101,12 +101,148 @@ All Nodes will contact that server for a list of IP address of the other servers
 User login with the coordinator and get IP address from the server.
 User establish TCP connection with the Node.
 The Node:
-RU for account balance. R for stocks in account. R for market status. CRD for orders.
-Delete accounts.
+- Establish connection
+  - Client send UserID
+- RU for account balance.
+  req:
+  ```json
+  { "type": "R balance" }
+  ```
+  rep:
+  ```json
+  100
+  ```
+  req:
+  ```json
+  {
+    "type": "U balance",
+    "value": 100
+  }
+  ```
+  rep:
+  ```json
+  "ok"
+  ```
+- R for stocks in account.
+  req:
+  ```json
+  { "type": "R stock" }
+  ```
+  rep:
+  ```json
+  {
+    "tickerID": 100,
+    "tickerID2": 200
+  }
+  ```
+- R for market status.
+  req:
+  ```json
+  { "type": "R market" }
+  ```
+  rep:
+  ```json
+  {
+    "tickerID": {
+      "sell": [
+        {
+          "quantity": 100,
+          "price": 10.55
+        }
+      ],
+      "buy": []
+    },
+    "tickerID2": {
+      "sell": [],
+      "buy": []
+    }
+  }
+  ```
+- CRD for orders.
+  req:
+  ```json
+  {
+    "type": "C order",
+    "value": {
+      "ticker": "tickerID",
+      "price": 10.5,
+      "quantity": 100
+    }
+  }
+  ```
+  rep:
+  ```json
+  "ok"
+  ```
+  req:
+  ```json
+  { "type": "R order" }
+  ```
+  rep:
+  ```json
+  {
+    "tickerID": {
+      "sell": [
+        {
+          "quantity": 100,
+          "price": 10.55
+        }
+      ],
+      "buy": []
+    },
+    "tickerID2": {
+      "sell": [],
+      "buy": []
+    }
+  }
+  ```
+  req:
+  ```json
+  {
+    "type": "D order",
+    "value": {
+      "ticker": "tickerID",
+      "price": 10.5,
+      "quantity": 100
+    }
+  }
+  ```
+  rep:
+  ```json
+  90 // quantity deleted (the rest already traded or didn't exist in the first place)
+  ```
+- Delete accounts.
+  req:
+  ```json
+  { "type": "D account" }
+  ```
+  rep:
+  ```json
+  "Ok|NotEmpty"
+  ```
 The Coordinator:
-Find Node for account.
-Create accounts.
-
+- Find Node for account.
+  - Establish connection
+  req:
+  ```json
+  "UserID"
+  ```
+  rep:
+  ```
+  "<server addr>" // to be parsed by SocketAddr::parse()
+  ```
+  - Close connection
+- Create accounts.
+  - Establish connection
+  req:
+  ```json
+  "New Account"
+  ```
+  rep:
+  ```json
+  "UserID"
+  ```
+  - Close connection
 We have 3 executable: coordinator, node, client. Client is optional.
 
 ### Coordinator failure
