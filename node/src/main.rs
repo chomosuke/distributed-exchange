@@ -1,5 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::net::{TcpStream, SocketAddr};
+use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 
 
@@ -10,6 +11,12 @@ struct Args {
 
     #[structopt(short, long)]
     port: u16,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ServerRecord {
+    id: i32,
+    address: SocketAddr,
 }
 
 fn main() {
@@ -56,6 +63,6 @@ fn main() {
             .ok()
             .expect("Deserialisation failed");
 
-        servers.append(record);
+        servers.push(record);
     }
 }
