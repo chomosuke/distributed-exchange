@@ -1,8 +1,9 @@
+mod matcher;
+
 use std::io::{BufRead, BufReader};
 use std::net::{TcpStream, SocketAddr};
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
-
 
 #[derive(StructOpt)]
 struct Args {
