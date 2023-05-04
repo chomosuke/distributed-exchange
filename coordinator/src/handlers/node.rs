@@ -57,8 +57,8 @@ pub async fn handler(
             .collect::<Vec<_>>(),
     }))?;
     // reply with ID and all other servers.
-    rw.writer.write_all(rep.as_bytes()).await?;
-    rw.writer.write_u8(b'\n').await?;
+    rw.writer.write_all(format!("{}\n", rep).as_bytes()).await?;
+    rw.writer.flush().await?;
 
     let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {

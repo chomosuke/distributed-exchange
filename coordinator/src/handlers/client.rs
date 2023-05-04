@@ -22,7 +22,7 @@ impl FromStr for FirstLine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(user_id) = serde_json::from_str(s) {
             Ok(FirstLine::FindNode(user_id))
-        } else if s == "C Account" {
+        } else if s == "\"C Account\"" {
             Ok(FirstLine::CAccount)
         } else {
             Err("Did not match first line for client".into())
@@ -53,16 +53,16 @@ pub async fn handler(
             let account_nums = global.account_nums.read().await;
             let server_records = global.server_records.read().await;
 
-            let mut max_acc = 0;
+            let mut min_acc = 0;
             for i in 0..account_nums.len() {
-                if account_nums[i] > account_nums[max_acc] {
-                    max_acc = i;
+                if account_nums[i] < account_nums[min_acc] {
+                    min_acc = i;
                 }
             }
 
             let (sender, recver) = oneshot::channel();
 
-            server_records[max_acc]
+            server_records[min_acc]
                 .sender
                 .send(Message::CAccount(sender))?;
 
