@@ -57,4 +57,5 @@ fn main() {
             .expect("Deserialisation failed");
 
         servers.append(record);
+    }
 }
