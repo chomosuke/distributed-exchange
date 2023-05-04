@@ -60,15 +60,15 @@ pub async fn handler(
     rw.writer.write_all(rep.as_bytes());
     rw.writer.write_u8(b'\n');
 
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {
         server_records[id].address = addr;
         account_nums[id] = state.account_num;
-        server_records[id].tx = tx;
+        server_records[id].sender = sender;
     } else {
         server_records.push(ServerRecord {
             address: first_line.addr,
-            tx,
+            sender,
         });
         account_nums.push(0);
     }
@@ -82,7 +82,7 @@ pub async fn handler(
     // inform all other nodes that this node has joined
     for i in 0..(server_records.len() - 1) {
         let server_record = &server_records[i];
-        server_record.tx.send(Message::Joined(id, addr));
+        server_record.sender.send(Message::Joined(id, addr));
     }
 
     // release the write lock
@@ -90,7 +90,7 @@ pub async fn handler(
     drop(account_nums);
 
     loop {
-        let msg = rx
+        let msg = recver
             .recv()
             .await
             .ok_or(format!("Channel for node {addr} is closed!"))?;
@@ -104,13 +104,13 @@ pub async fn handler(
                 }))?);
                 rw.writer.write_u8(b'\n');
             }
-            Message::CAccount(tx) => {
+            Message::CAccount(sender) => {
                 rw.writer.write_all(&serde_json::to_vec(&json!({
                     "type": "C account",
                 }))?);
 
                 rw.reader.read_line(&mut line).await?;
-                tx.send(serde_json::from_str(&line)?);
+                sender.send(serde_json::from_str(&line)?);
             },
         }
     }

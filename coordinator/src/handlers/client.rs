@@ -5,7 +5,7 @@ use super::ReadWriter;
 use crate::Global;
 
 #[derive(Deserialize)]
-struct UserID {
+pub struct UserID {
     id: u64,
     node_id: u64,
 }
@@ -34,4 +34,5 @@ pub async fn handler(
     rw: ReadWriter<'_>,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
+    
 }

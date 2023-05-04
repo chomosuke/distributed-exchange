@@ -22,7 +22,7 @@ struct ServerRecord {
     address: SocketAddr,
 
     #[serde(skip_serializing)]
-    tx: UnboundedSender<handlers::Message>,
+    sender: UnboundedSender<handlers::Message>,
 }
 
 struct Global {
