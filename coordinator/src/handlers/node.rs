@@ -29,6 +29,7 @@ struct State {
     account_num: u64,
 }
 
+#[derive(Debug)]
 pub enum Message {
     Joined(usize, SocketAddr),
     CAccount(Sender<UserID>),
@@ -49,16 +50,15 @@ pub async fn handler(
     let addr = first_line.addr;
     let rep = serde_json::to_string(&json!({
         "id": id,
-        "others": (*server_records)
+        "others": server_records
             .iter()
             .enumerate()
             .map(|(i, r)| json!({"id": i, "addr": r.address}))
             .collect::<Vec<_>>(),
     }))?;
     // reply with ID and all other servers.
-    // no need to await, can just await when listening for "ok"
-    rw.writer.write_all(rep.as_bytes());
-    rw.writer.write_u8(b'\n');
+    rw.writer.write_all(rep.as_bytes()).await?;
+    rw.writer.write_u8(b'\n').await?;
 
     let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {
@@ -82,7 +82,7 @@ pub async fn handler(
     // inform all other nodes that this node has joined
     for i in 0..(server_records.len() - 1) {
         let server_record = &server_records[i];
-        server_record.sender.send(Message::Joined(id, addr));
+        server_record.sender.send(Message::Joined(id, addr))?;
     }
 
     // release the write lock
@@ -101,16 +101,15 @@ pub async fn handler(
                     "type": "joined",
                     "id": id,
                     "addr": addr,
-                }))?);
-                rw.writer.write_u8(b'\n');
+                }))?).await?;
             }
             Message::CAccount(sender) => {
                 rw.writer.write_all(&serde_json::to_vec(&json!({
                     "type": "C account",
-                }))?);
+                }))?).await?;
 
                 rw.reader.read_line(&mut line).await?;
-                sender.send(serde_json::from_str(&line)?);
+                sender.send(serde_json::from_str(&line)?).map_err(|_| line.clone())?;
             },
         }
     }

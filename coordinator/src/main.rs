@@ -1,3 +1,5 @@
+#![allow(clippy::new_without_default)]
+
 use std::{net::SocketAddr, sync::Arc};
 
 use serde::Serialize;
@@ -25,7 +27,7 @@ struct ServerRecord {
     sender: UnboundedSender<handlers::Message>,
 }
 
-struct Global {
+pub struct Global {
     server_records: RwLock<Vec<ServerRecord>>,
     account_nums: RwLock<Vec<u64>>,
 }
@@ -58,8 +60,9 @@ async fn main() {
             }
         };
 
+        let global = Arc::clone(&global);
         tokio::spawn(async {
-            match handler(socket, Arc::clone(&global)).await {
+            match handler(socket, global).await {
                 Ok(msg) => println!("Connection terminated successfully: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }

@@ -14,7 +14,7 @@ mod node;
 
 pub use node::Message;
 
-struct ReadWriter<'a> {
+pub struct ReadWriter<'a> {
     reader: BufReader<ReadHalf<'a>>,
     writer: BufWriter<WriteHalf<'a>>,
 }
