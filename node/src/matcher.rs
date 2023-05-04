@@ -1,23 +1,26 @@
-use std::{collections::{BTreeMap, HashMap, VecDeque}, hash::Hash};
+use std::{
+    cmp::min,
+    collections::{BTreeMap, HashMap, VecDeque},
+};
 
 type Ticker = String;
-type DollarAmount = i32;
-type Quantity = i32;
+type CentAmount = u64;
+type Quantity = u64;
 type UserId = String;
 
 struct TickerOrders {
-    buy: BTreeMap<DollarAmount, VecDeque<Order>>,
-    sell: BTreeMap<DollarAmount, VecDeque<Order>>,
+    buy: BTreeMap<CentAmount, VecDeque<Order>>,
+    sell: BTreeMap<CentAmount, VecDeque<Order>>,
 }
 
 struct UserOrders {
-    buy: HashMap<(Ticker, DollarAmount), Quantity>,
-    sell: HashMap<(Ticker, DollarAmount), Quantity>,
+    buy: HashMap<(Ticker, CentAmount), Quantity>,
+    sell: HashMap<(Ticker, CentAmount), Quantity>,
 }
 
 enum OrderType {
     BUY,
-    SELL
+    SELL,
 }
 
 struct Order {
@@ -25,18 +28,18 @@ struct Order {
     ticker: Ticker,
     user_id: UserId,
     quantity: Quantity,
-    price: DollarAmount,
+    price: CentAmount,
 }
 
 struct Wallet {
     user_id: UserId,
-    cash_balance: DollarAmount,
+    cash_balance: CentAmount,
     portfolio: HashMap<Ticker, Quantity>,
 }
 
 struct Trade {
     quantity: Quantity,
-    price: DollarAmount,
+    price: CentAmount,
     ticker: Ticker,
     buyer_id: UserId,
     seller_id: UserId,
@@ -60,75 +63,86 @@ impl Matcher {
     // },
 
     pub fn add_order(&mut self, order: Order) -> Vec<Trade> {
+        let mut quantity = order.quantity;
 
-        todo!()
         // match match match but only when one of them is an account you own
         // Not matched, add order
         // Need to keep user_orders in sync
 
-        // if !self.ticker_orders.contains_key(&order.ticker) {
-        //     self.ticker_orders.insert(, v)
-        // }
+        if !self.ticker_orders.contains_key(&order.ticker) {
+            self.ticker_orders.insert(
+                order.ticker.clone(),
+                TickerOrders {
+                    buy: BTreeMap::new(),
+                    sell: BTreeMap::new(),
+                },
+            );
+        }
 
-        // let mut ticker_orders = self.ticker_orders.get_mut(&order.ticker)
+        let ticker_orders = self.ticker_orders.get_mut(&order.ticker).unwrap();
 
-        // match order.order_type {
-        //     OrderType::BUY => {
-        //         let proposed_trades: Vec<Trade> = Vec<Trade>::new();
-        //         while {
-        //             if let Some(entry) = self.user_orders.first_entry() {
-        //                 entry.get().price < order.price
-        //             } else {
-        //                 false
-        //             }
-        //         } {
-        //             // modify the sell_order's quantity. If quantity = 0, delete the sell_order
-        //             let new_trade: Trade = Trade {
-        //                 quantity: Quantity::min(order.quantity, entry.quantity),
-        //                 price: Price::entry.get().price,
-        //                 ticker: order.ticker,
-        //                 buyer_id: order.user_id,
-        //                 seller_id: entry.user_id,
-        //             }
+        let existing_orders = match order.order_type {
+            OrderType::BUY => &mut ticker_orders.sell,
+            OrderType::SELL => &mut ticker_orders.buy,
+        };
 
+        let mut proposed_trades: Vec<Trade> = Vec::new();
 
+        while {
+            if let Some(entry) = existing_orders.first_entry() {
+                entry.key() < &order.price && quantity != 0
+            } else {
+                false
+            }
+        } {
+            let mut entry = existing_orders.first_entry().unwrap();
+            let order_list = entry.get_mut();
 
-        //             proposed_trades.push(Trade::new());
+            while !order_list.is_empty() && quantity != 0 {
+                // modify the sell_order's quantity. If quantity = 0, delete the sell_order
+                let matched_order = order_list.front_mut().unwrap();
 
-        //             if order.quantity == 0 {
-        //                 proposed_trades
-        //             }
+                let new_trade: Trade = Trade {
+                    quantity: min(quantity, matched_order.quantity),
+                    price: matched_order.price,
+                    ticker: order.ticker.clone(),
+                    buyer_id: order.user_id.clone(),
+                    seller_id: matched_order.user_id.clone(),
+                };
 
-        //             // send trade offer to the seller
-        //             // await
-        //             // if successful, return
-        //             // if failed,
-        //             //   if order was deleted, recreate it
-        //             //   if order was not deleted, add balance to it.
+                quantity -= new_trade.quantity;
+                matched_order.quantity -= new_trade.quantity;
 
-        //         }
-        //         proposed_trades
-        //     }
-        //     OrderType::SELL => {
-        //         if let Some(mut entry) = buy_map.first_entry() {
-        //             if entry.get_mut().price > order.price {
-        //                 // send trade offer to the buyer
-        //                 // deduct from the seller's stock balance
-        //             }
-        //         }
-        //     }
-        // }
+                proposed_trades.push(new_trade);
+
+                if matched_order.quantity == 0 {
+                    order_list.pop_front();
+                }
+            }
+            if order_list.is_empty() {
+                entry.remove_entry();
+            }
+
+            //TODO: Remove matched_order from UserOrders
+
+            // send trade offer to the seller
+            // await
+            // if successful, return
+            // if failed,
+            //   if order was deleted, recreate it
+            //   if order was not deleted, add balance to it.
+        }
+        proposed_trades
     }
 }
 
+// // Initialise local accounts
+// let accounts: HashMap<UserId, Wallet> = HashMap::new();
 
-    // // Initialise local accounts
-    // let accounts: HashMap<UserId, Wallet> = HashMap::new();
+// // Initialise local market representation
+// let buy_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
+// let sell_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
 
-    // // Initialise local market representation
-    // let buy_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
-    // let sell_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
-
-    // loop {
-    //     todo!()
-    // }
+// loop {
+//     todo!()
+// }
