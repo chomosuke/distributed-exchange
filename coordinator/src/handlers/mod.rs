@@ -1,6 +1,5 @@
 use std::{error::Error, str::FromStr, sync::Arc};
 use read_writer::ReadWriter;
-use tokio::net::TcpStream;
 
 use crate::Global;
 
@@ -9,8 +8,7 @@ mod node;
 
 pub use node::Message;
 
-pub async fn handler(mut socket: TcpStream, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
-    let mut rw = ReadWriter::new(&mut socket);
+pub async fn handler(mut rw: ReadWriter<'_>, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
     let first_line = rw.read_line().await?;
 
     if let Ok(first_line) = client::FirstLine::from_str(&first_line) {
