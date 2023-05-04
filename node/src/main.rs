@@ -38,4 +38,23 @@ fn main() {
         .expect("Error parsing server id number");
 
     println!("Server Id: {}", server_id);
+
+    let mut servers: Vec<ServerRecord> = Vec::new();
+    for i in 0..server_id {
+
+        // Read next record from coordinator
+        let mut buffer: Vec<u8> = Vec::new();
+        reader.read_until(b'|', &mut buffer)
+            .ok()
+            .expect("Error reading json");
+        let buffer_string: String = String::from_utf8(buffer)
+            .ok()
+            .expect("Error unwrapping server record string");
+        let buffer_string: String = format!("{}", buffer_string.trim_end_matches('|'));
+
+        let record: ServerRecord = serde_json::from_str(&buffer_string)
+            .ok()
+            .expect("Deserialisation failed");
+
+        servers.append(record);
 }
