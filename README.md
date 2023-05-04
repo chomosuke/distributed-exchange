@@ -28,7 +28,43 @@
 2. MD sends request, awaits replies from all servers for potential match. If successful, execute. Else, hold on to request.
    - Not good because we lose the ability to see a stats of the whole market.
 
+## Example runs of the protocol
+Assume M1 and M2 are nodes.
+
+e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
+     M1 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
+
+e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
+     M2 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
+     M1 sends a TRADE_CONFIRMED to all M. => M messages.
+
+## Fault tolerance
+When a node crashes, it'll be restarted.
+We store everything important: money, stock, order from their own account.
+When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.
+
+If a Node already sent out a trade offer, it can't commit or abort without a trade reply.
+If a Node receives a trade offer, it can commit or abort immediately before sending the trade reply.
+When a node crash, all the transactions that involve that node can't be committed or aborted. But all the account that node owns can't do anything as well, so it's not that much worse.
+
+## Coordinator
+One single dedicated server will listen on an IP address.
+All Nodes will contact that server for a list of IP address of the other servers and register its own address.
+User login with the coordinator and get IP address from the server.
+User establish TCP connection with the Node.
+
+
 ## Messaging protocol
+
+We have 3 executable: Coordinator, Node, Client. Client is optional.
+
+types:
+- UserID and TradeID can be objects of some sort.
+- Ticker is a string.
+
+TCP will be wrap in keepalive messaging of 10 seconds
+
+### Node2Node
 There are 3 kinds of message:
 - Order: Buy/Sell, ticker, userid, quantity, price.
 - TradeOffer: TradeId, ticker, userid_buyer, userid_seller, quantity, price
@@ -74,33 +110,84 @@ Message format one line per json message:
 }
 ```
 
-UserID, TradeID and Ticker can be objects of some sort.
+### Node2Coordinator
+- Register (new or recovered) node
+  - Establish connection
+  Node -> Coord
+  ```json
+  {
+    "addr": "<node addr>",
+    "state": { // null if new node
+      "id": 3,
+      "account_num": 100
+    }
+  }
+  ```
+  Coord -> Node
+  ```json
+  {
+    "id": 3 // null if recovered node
+    "others": [ // other nodes
+      {
+        "id": 1,
+        "addr": "<node addr>"
+      }
+    ]
+  }
+  ```
+  Node -> Coord
+  ```json
+  "ok" // recieved and prepared to connect with all other nodes
+  ```
+  - req rep messages
+    - New / recovered node joined:
+    req:
+    ```json
+    {
+      "type": "joined",
+      "id": 3,
+      "addr": "<node addr>"
+    }
+    ```
+    rep:
+    ```json
+    "ok" // will attempt connection with new node
+    ```
+    - New account request
+    req:
+    ```json
+    { "type": "C account" }
+    ```
+    rep:
+    ```json
+    "UserID"
+    ```
 
-## Example runs of the protocol
-Assume M1 and M2 are nodes.
+### Client2Coordinator
+- Find Node for account.
+  - Establish connection
+  req:
+  ```json
+  "UserID"
+  ```
+  rep:
+  ```
+  "<node addr>" // to be parsed by SocketAddr::parse()
+  ```
+  - Close connection
+- Create accounts.
+  - Establish connection
+  req:
+  ```json
+  "C Account"
+  ```
+  rep:
+  ```json
+  "UserID"
+  ```
+  - Close connection
 
-e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M1 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
-
-e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M2 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
-     M1 sends a TRADE_CONFIRMED to all M. => M messages.
-
-## Fault tolerance
-When a node crashes, it'll be restarted.
-We store everything important: money, stock, order from their own account.
-When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.
-
-If a Node already sent out a trade offer, it can't commit or abort without a trade reply.
-If a Node receives a trade offer, it can commit or abort immediately before sending the trade reply.
-When a node crash, all the transactions that involve that node can't be committed or aborted. But all the account that node owns can't do anything as well, so it's not that much worse.
-
-## Coordinator
-One single dedicated server will listen on an IP address.
-All Nodes will contact that server for a list of IP address of the other servers and register its own address.
-User login with the coordinator and get IP address from the server.
-User establish TCP connection with the Node.
-The Node:
+### Client2Node
 - Establish connection
   - Client send UserID
 - RU for account balance.
@@ -220,29 +307,6 @@ The Node:
   ```json
   "Ok|NotEmpty"
   ```
-The Coordinator:
-- Find Node for account.
-  - Establish connection
-  req:
-  ```json
-  "UserID"
-  ```
-  rep:
-  ```
-  "<server addr>" // to be parsed by SocketAddr::parse()
-  ```
-  - Close connection
-- Create accounts.
-  - Establish connection
-  req:
-  ```json
-  "New Account"
-  ```
-  rep:
-  ```json
-  "UserID"
-  ```
-  - Close connection
-We have 3 executable: coordinator, node, client. Client is optional.
+
 
 ### Coordinator failure
