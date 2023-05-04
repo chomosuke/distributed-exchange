@@ -1,6 +1,7 @@
 # distributed-exchange
 
 ## Application
+
 - A distributed central database which implements the 'Saga' protocol to facilitate distributed transactions.
   - Users which will interact with the servers via HTTPS.
   - Each node hold multiple accounts.
@@ -10,12 +11,14 @@
 - Each account have roughly 0.1 unmatched buy or sell order at any given time.
 
 ## Running instructions
+
 - Launch a single coordinator:
   `cargo run -p coordinator -- -p <port>`
 - Launch at least 2 market database servers:
   `cargo run -p node -- -c <coordinator address & port> -p <port>`
 
 ## Approaches
+
 1. Each node have local database (CHOSEN)
    - Each Node have its own copy of all buy and sell order on the market.
    - Every buy and sell order updates that database.
@@ -29,16 +32,18 @@
    - Not good because we lose the ability to see a stats of the whole market.
 
 ## Example runs of the protocol
+
 Assume M1 and M2 are nodes.
 
 e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M1 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
+M1 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_CONFIRMED to all M. => M messages
 
 e.g. M1 receives a SELL order from a user. It tries to match locally and fails, so it sends a SELL to all M. => M messages
-     M2 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
-     M1 sends a TRADE_CONFIRMED to all M. => M messages.
+M2 receives a BUY order from a user. It matches locally with the SELL. It sends a TRADE_OFFER to M1. => 1 message
+M1 sends a TRADE_CONFIRMED to all M. => M messages.
 
 ## Fault tolerance
+
 When a node crashes, it'll be restarted.
 We store everything important: money, stock, order from their own account.
 When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.
@@ -48,24 +53,28 @@ If a Node receives a trade offer, it can commit or abort immediately before send
 When a node crash, all the transactions that involve that node can't be committed or aborted. But all the account that node owns can't do anything as well, so it's not that much worse.
 
 ## Coordinator
+
 One single dedicated server will listen on an IP address.
 All Nodes will contact that server for a list of IP address of the other servers and register its own address.
 User login with the coordinator and get IP address from the server.
 User establish TCP connection with the Node.
-
 
 ## Messaging protocol
 
 We have 3 executable: Coordinator, Node, Client. Client is optional.
 
 types:
-- UserID and TradeID can be objects of some sort.
+
+- UserID can be objects of some sort.
+- TradeID is an integer.
 - Ticker is a string.
 
 TCP will be wrap in keepalive messaging of 10 seconds
 
 ### Node2Node
+
 There are 3 kinds of message:
+
 - Order: Buy/Sell, ticker, userid, quantity, price.
 - TradeOffer: TradeId, ticker, userid_buyer, userid_seller, quantity, price
 - TradeRep: Confirmed/Declined, TradeId
@@ -73,11 +82,13 @@ There are 3 kinds of message:
 Communication channel: TCP stream.
 
 Message format one line per json message:
+
 ```json
 {
   "type": "order|offer|reply"
 }
 ```
+
 ```json
 {
   "type": "order",
@@ -90,6 +101,7 @@ Message format one line per json message:
   }
 }
 ```
+
 ```json
 {
   "type": "offer",
@@ -103,21 +115,27 @@ Message format one line per json message:
   }
 }
 ```
+
 ```json
 {
   "type": "reply",
-  "accepted": true
+  "content": {
+    "accepted": true,
+    "id": "TradeID"
+  }
 }
 ```
 
 ### Node2Coordinator
+
 - Register (new or recovered) node
   - Establish connection
-  Node -> Coord
+    Node -> Coord
   ```json
   {
     "addr": "<node addr>",
-    "state": { // null if new node
+    "state": {
+      // null if new node
       "id": 3,
       "account_num": 100
     }
@@ -141,7 +159,7 @@ Message format one line per json message:
   ```
   - req rep messages
     - New / recovered node joined:
-    req:
+      req:
     ```json
     {
       "type": "joined",
@@ -154,7 +172,7 @@ Message format one line per json message:
     "ok" // will attempt connection with new node
     ```
     - New account request
-    req:
+      req:
     ```json
     { "type": "C account" }
     ```
@@ -164,9 +182,10 @@ Message format one line per json message:
     ```
 
 ### Client2Coordinator
+
 - Find Node for account.
   - Establish connection
-  req:
+    req:
   ```json
   "UserID"
   ```
@@ -177,7 +196,7 @@ Message format one line per json message:
   - Close connection
 - Create accounts.
   - Establish connection
-  req:
+    req:
   ```json
   "C Account"
   ```
@@ -188,6 +207,7 @@ Message format one line per json message:
   - Close connection
 
 ### Client2Node
+
 - Establish connection
   - Client send UserID
 - RU for account balance.
@@ -210,7 +230,7 @@ Message format one line per json message:
   ```json
   "ok"
   ```
-- R for stocks in account.
+- CR for stocks in account.
   req:
   ```json
   { "type": "R stock" }
@@ -220,6 +240,16 @@ Message format one line per json message:
   {
     "tickerID": 100,
     "tickerID2": 200
+  }
+  ```
+  req:
+  ```json
+  {
+    "type": "C stock", // IPO: Should be privileged to admin user of some governing body
+    "content": {
+      "ticker_id": "tickerID",
+      "quantity": 1000,
+    }
   }
   ```
 - R for market status.
@@ -307,6 +337,5 @@ Message format one line per json message:
   ```json
   "Ok|NotEmpty"
   ```
-
 
 ### Coordinator failure
