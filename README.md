@@ -65,7 +65,13 @@ We have 3 executable: Coordinator, Node, Client. Client is optional.
 
 types:
 
-- UserID can be objects of some sort.
+- UserID is a json object of the following structure:
+  ```json
+  {
+    "id": 5,
+    "node_id": 3
+  }
+  ```
 - TradeID is an integer.
 - Ticker is a string.
 
@@ -248,7 +254,7 @@ Message format one line per json message:
     "type": "C stock", // IPO: Should be privileged to admin user of some governing body
     "content": {
       "ticker_id": "tickerID",
-      "quantity": 1000,
+      "quantity": 1000
     }
   }
   ```
