@@ -1,7 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::env::args;
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use structopt::StructOpt;
+use std::io::{BufWriter, Write};
+use std::net::{SocketAddr, TcpListener};
+
+#[derive(StructOpt)]
+struct Args {
+    #[structopt(short, long)]
+    port: u16,
+}
 
 #[derive(Serialize, Deserialize)]
 struct ServerRecord {
@@ -10,11 +16,10 @@ struct ServerRecord {
 }
 
 fn main() {
-    let args = args().collect::<Vec<_>>();
-    let port = args.get(1).expect("expected port as first argument");
+    let args = Args::from_args();
 
-    let ip_port = format!("127.0.0.1:{}", port);
-    println!("Starting first server at {}", ip_port);
+    let ip_port = format!("127.0.0.1:{}", args.port);
+    println!("Starting coordinator on {}", ip_port);
     let receiver_listener: TcpListener = TcpListener::bind(ip_port).expect("Failed to bind");
 
     let mut address_book: Vec<ServerRecord> = Vec::new();
