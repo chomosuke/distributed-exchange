@@ -65,6 +65,7 @@ dependencies = [
 name = "coordinator"
 version = "0.1.0"
 dependencies = [
+ "read_writer",
  "serde",
  "serde_json",
  "structopt",
@@ -235,6 +236,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4424af4bf778aae2051a77b60283332f386554255d722233d09fbfc7e30da2fc"
 dependencies = [
  "proc-macro2",
+]
+
+[[package]]
+name = "read_writer"
+version = "0.1.0"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]

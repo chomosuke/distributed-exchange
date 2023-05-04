@@ -1,12 +1,10 @@
+use read_writer::ReadWriter;
 use serde::Deserialize;
 use serde_json::json;
 use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt},
-    sync::{mpsc, oneshot::Sender},
-};
+use tokio::sync::{mpsc, oneshot::Sender};
 
-use super::{client::UserID, ReadWriter};
+use super::client::UserID;
 use crate::{Global, ServerRecord};
 
 #[derive(Deserialize)]
@@ -57,8 +55,7 @@ pub async fn handler(
             .collect::<Vec<_>>(),
     }))?;
     // reply with ID and all other servers.
-    rw.writer.write_all(format!("{}\n", rep).as_bytes()).await?;
-    rw.writer.flush().await?;
+    rw.write_line(&rep).await?;
 
     let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {
@@ -73,8 +70,7 @@ pub async fn handler(
         account_nums.push(0);
     }
 
-    let mut line = String::new();
-    rw.reader.read_line(&mut line).await?;
+    let line = rw.read_line().await?;
     if line != "ok" {
         panic!("Node at {addr} replied with {line} instead of \"ok\"",);
     }
@@ -97,18 +93,18 @@ pub async fn handler(
 
         match msg {
             Message::Joined(id, addr) => {
-                rw.writer.write_all(&serde_json::to_vec(&json!({
+                rw.write_line(&serde_json::to_string(&json!({
                     "type": "joined",
                     "id": id,
                     "addr": addr,
                 }))?).await?;
             }
             Message::CAccount(sender) => {
-                rw.writer.write_all(&serde_json::to_vec(&json!({
+                rw.write_line(&serde_json::to_string(&json!({
                     "type": "C account",
                 }))?).await?;
 
-                rw.reader.read_line(&mut line).await?;
+                let line = rw.read_line().await?;
                 sender.send(serde_json::from_str(&line)?).map_err(|_| line.clone())?;
             },
         }

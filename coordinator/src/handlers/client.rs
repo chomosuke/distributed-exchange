@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{error::Error, str::FromStr, sync::Arc};
-use tokio::{io::AsyncWriteExt, sync::oneshot};
+use tokio::sync::oneshot;
 
 use super::{Message, ReadWriter};
 use crate::Global;
@@ -40,9 +40,7 @@ pub async fn handler(
             let server_records = global.server_records.read().await;
             let addr = server_records[user_id.node_id].address;
 
-            rw.writer
-                .write_all(&format!("\"{}\"\n", addr).into_bytes())
-                .await?;
+            rw.write_line(&addr.to_string()).await?;
 
             Ok(format!(
                 "Found node {} for account {{ id: {}, node_id {} }}.",
@@ -68,8 +66,7 @@ pub async fn handler(
 
             let user_id = recver.await?;
 
-            rw.writer.write_all(&serde_json::to_vec(&user_id)?).await?;
-            rw.writer.write_u8(b'\n').await?;
+            rw.write_line(&serde_json::to_string(&user_id)?).await?;
 
             Ok(format!(
                 "Created account {{ id: {}, node_id {} }}.",
