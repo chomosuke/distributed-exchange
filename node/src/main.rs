@@ -1,9 +1,16 @@
+mod handlers;
 mod matcher;
 
-use std::io::{BufRead, BufReader};
-use std::net::{TcpStream, SocketAddr};
-use serde::{Deserialize, Serialize};
+use crate::handlers::handler;
+use read_writer::ReadWriter;
+use serde::Deserialize;
+use serde_json::json;
+use std::{net::SocketAddr, sync::Arc};
 use structopt::StructOpt;
+use tokio::{
+    net::{TcpListener, TcpStream},
+    sync::{mpsc::UnboundedSender, RwLock},
+};
 
 #[derive(StructOpt)]
 struct Args {
@@ -11,59 +18,95 @@ struct Args {
     coordinator: SocketAddr,
 
     #[structopt(short, long)]
-    port: u16,
+    addr: SocketAddr,
 }
 
-#[derive(Serialize, Deserialize)]
+enum Server {
+    DisConnected(SocketAddr),
+    Connected {
+        sender: UnboundedSender<handlers::Message>,
+    },
+    This,
+}
+
+struct Global {
+    id: usize,
+    others: RwLock<Vec<Server>>,
+}
+
+impl Global {
+    pub fn new(id: usize, mut others: Vec<ServerRecord>) -> Self {
+        others.sort_by_key(|sr| sr.id);
+        let mut o = Vec::new();
+        for other in others {
+            if o.len() == id {
+                o.push(Server::This);
+            }
+            assert!(o.len() == other.id, "Missing server with id {}", o.len());
+            o.push(Server::DisConnected(other.address));
+        }
+        Self {
+            id,
+            others: RwLock::new(o),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct InitInfo {
+    id: Option<usize>,
+    others: Vec<ServerRecord>,
+}
+#[derive(Deserialize)]
 struct ServerRecord {
-    id: i32,
+    id: usize,
     address: SocketAddr,
 }
 
-fn main() {
-    let args = Args::from_args();
+#[tokio::main]
+async fn main() {
+    let Args { addr, coordinator } = Args::from_args();
 
-    println!("Contacting coordinator on {}", args.coordinator);
+    println!("Contacting coordinator on {}", coordinator);
+
+    let listener: TcpListener = TcpListener::bind(addr).await.expect("Failed to bind");
 
     // Connect to coordinator
-    let stream = TcpStream::connect(args.coordinator).expect("Failed to connect");
-    let mut reader = BufReader::new(&stream);
-    let mut buffer: Vec<u8> = Vec::new();
+    let mut socket = TcpStream::connect(coordinator)
+        .await
+        .expect("Failed to connect coordinator");
+    let mut coord_rw = ReadWriter::new(&mut socket);
+
+    // send coordinator
+    // TODO: Consider recovering node
+    coord_rw
+        .write_line(&serde_json::to_string(&json!({ "addr": &addr })).unwrap())
+        .await
+        .unwrap();
 
     // Get Id from coordinator
-    reader
-        .read_until(b'\n', &mut buffer)
-        .ok()
-        .expect("Error reading");
-    let buffer_string: String = String::from_utf8(buffer)
-        .ok()
-        .expect("Error unwrapping string");
-    let buffer_string: String = format!("{}", buffer_string.trim_end());
+    let init_info: InitInfo =
+        serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error.");
+    let id = init_info.id.expect("TODO");
 
-    let server_id: i32 = buffer_string
-        .parse::<i32>()
-        .ok()
-        .expect("Error parsing server id number");
+    println!("Server Id: {}", id);
 
-    println!("Server Id: {}", server_id);
+    let global = Arc::new(Global::new(id, init_info.others));
 
-    let mut servers: Vec<ServerRecord> = Vec::new();
-    for i in 0..server_id {
-
-        // Read next record from coordinator
-        let mut buffer: Vec<u8> = Vec::new();
-        reader.read_until(b'|', &mut buffer)
-            .ok()
-            .expect("Error reading json");
-        let buffer_string: String = String::from_utf8(buffer)
-            .ok()
-            .expect("Error unwrapping server record string");
-        let buffer_string: String = format!("{}", buffer_string.trim_end_matches('|'));
-
-        let record: ServerRecord = serde_json::from_str(&buffer_string)
-            .ok()
-            .expect("Deserialisation failed");
-
-        servers.push(record);
+    loop {
+        let mut socket = match listener.accept().await {
+            Ok((socket, _)) => socket,
+            Err(e) => {
+                eprintln!("Error receiving connection from a new server: {e}");
+                continue;
+            }
+        };
+        let global = Arc::clone(&global);
+        tokio::spawn(async move {
+            match handler(ReadWriter::new(&mut socket), global).await {
+                Ok(msg) => println!("Connection terminated successfully: {msg}"),
+                Err(e) => eprintln!("Error: {e}"),
+            }
+        });
     }
 }

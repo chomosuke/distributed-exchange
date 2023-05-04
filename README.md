@@ -92,7 +92,7 @@ Message format one line per json message:
 ```json
 {
   "type": "order",
-  "content": {
+  "value": {
     "type": "buy|sell",
     "ticker": "Ticker",
     "user_id": "UserID",
@@ -105,7 +105,7 @@ Message format one line per json message:
 ```json
 {
   "type": "offer",
-  "content": {
+  "value": {
     "id": "TradeID",
     "ticker": "Ticker",
     "buyer_id": "UserID",
@@ -119,7 +119,7 @@ Message format one line per json message:
 ```json
 {
   "type": "reply",
-  "content": {
+  "value": {
     "accepted": true,
     "id": "TradeID"
   }
@@ -243,7 +243,7 @@ Message format one line per json message:
   ```json
   {
     "type": "C stock", // IPO: Should be privileged to admin user of some governing body
-    "content": {
+    "value": {
       "ticker_id": "tickerID",
       "quantity": 1000
     }
