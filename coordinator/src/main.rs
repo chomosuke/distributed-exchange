@@ -2,6 +2,7 @@
 
 use std::{net::SocketAddr, sync::Arc};
 
+use read_writer::ReadWriter;
 use serde::Serialize;
 use structopt::StructOpt;
 use tokio::{
@@ -52,17 +53,16 @@ async fn main() {
     let global: Arc<Global> = Arc::new(Global::new());
 
     loop {
-        let socket = match listener.accept().await {
+        let mut socket = match listener.accept().await {
             Ok((socket, _)) => socket,
             Err(e) => {
                 eprintln!("Error receiving connection from a new server: {e}");
                 continue;
             }
         };
-
         let global = Arc::clone(&global);
-        tokio::spawn(async {
-            match handler(socket, global).await {
+        tokio::spawn(async move {
+            match handler(ReadWriter::new(&mut socket), global).await {
                 Ok(msg) => println!("Connection terminated successfully: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }

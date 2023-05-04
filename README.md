@@ -91,12 +91,6 @@ Message format one line per json message:
 
 ```json
 {
-  "type": "order|offer|reply"
-}
-```
-
-```json
-{
   "type": "order",
   "content": {
     "type": "buy|sell",
