@@ -37,8 +37,7 @@ fn main() {
                     id: next_id,
                     address: stream
                         .peer_addr()
-                        .ok()
-                        .expect("Couldn't connect to the server..."),
+                        .expect("Couldn't connect to the node..."),
                 };
                 next_id += 1;
 
@@ -48,17 +47,14 @@ fn main() {
                 let buffer_string: String = format!("{}\n", &address_book.len());
                 writer
                     .write(format!("{}\n", buffer_string).as_bytes())
-                    .ok()
                     .expect("Error writing to buffer");
 
                 for record in &address_book {
                     let json_string: String = serde_json::to_string(&record)
-                        .ok()
                         .expect("Serialisation failed");
                     let buffer_string: String = format!("{}|", json_string);
                     writer
                         .write(buffer_string.as_bytes())
-                        .ok()
                         .expect("Error writing to buffer");
                 }
 
