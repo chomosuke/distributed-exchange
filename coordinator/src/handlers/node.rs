@@ -1,12 +1,12 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt},
-    sync::mpsc,
+    sync::{mpsc, oneshot::Sender},
 };
 
-use super::ReadWriter;
+use super::{client::UserID, ReadWriter};
 use crate::{Global, ServerRecord};
 
 #[derive(Deserialize)]
@@ -31,7 +31,7 @@ struct State {
 
 pub enum Message {
     Joined(usize, SocketAddr),
-    CAccount,
+    CAccount(Sender<UserID>),
 }
 
 pub async fn handler(
@@ -48,12 +48,12 @@ pub async fn handler(
         .unwrap_or(server_records.len());
     let addr = first_line.addr;
     let rep = serde_json::to_string(&json!({
-            "id": id,
-            "others": (*server_records)
-                .iter()
-                .enumerate()
-                .map(|(i, r)| json!({"id": i, "addr": r.address}))
-                .collect::<Vec<_>>(),
+        "id": id,
+        "others": (*server_records)
+            .iter()
+            .enumerate()
+            .map(|(i, r)| json!({"id": i, "addr": r.address}))
+            .collect::<Vec<_>>(),
     }))?;
     // reply with ID and all other servers.
     // no need to await, can just await when listening for "ok"
@@ -90,6 +90,28 @@ pub async fn handler(
     drop(account_nums);
 
     loop {
-        
+        let msg = rx
+            .recv()
+            .await
+            .ok_or(format!("Channel for node {addr} is closed!"))?;
+
+        match msg {
+            Message::Joined(id, addr) => {
+                rw.writer.write_all(&serde_json::to_vec(&json!({
+                    "type": "joined",
+                    "id": id,
+                    "addr": addr,
+                }))?);
+                rw.writer.write_u8(b'\n');
+            }
+            Message::CAccount(tx) => {
+                rw.writer.write_all(&serde_json::to_vec(&json!({
+                    "type": "C account",
+                }))?);
+
+                rw.reader.read_line(&mut line).await?;
+                tx.send(serde_json::from_str(&line)?);
+            },
+        }
     }
 }
