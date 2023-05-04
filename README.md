@@ -173,10 +173,7 @@ Message format one line per json message:
       "addr": "<node addr>"
     }
     ```
-    rep:
-    ```json
-    "ok" // will attempt connection with new node
-    ```
+    rep: No Reply
     - New account request
       req:
     ```json
