@@ -1,8 +1,9 @@
+mod accounts;
 mod handlers;
 mod matcher;
 
-use crate::handlers::handler;
-use read_writer::ReadWriter;
+use crate::{handlers::handler, accounts::Accounts};
+use lib::read_writer::ReadWriter;
 use serde::Deserialize;
 use serde_json::json;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -19,6 +20,9 @@ struct Args {
 
     #[structopt(short, long)]
     addr: SocketAddr,
+
+    #[structopt(short, long)]
+    presistant_dir: String,
 }
 
 enum Node {
@@ -62,7 +66,14 @@ pub struct NodeRecord {
 
 #[tokio::main]
 async fn main() {
-    let Args { addr, coordinator } = Args::from_args();
+    let Args {
+        addr,
+        coordinator,
+        presistant_dir,
+    } = Args::from_args();
+
+    // apart from account file, everything is stored in the 'state' file
+    let mut accounts = Accounts::restore(presistant_dir);
 
     println!("Contacting coordinator on {}", coordinator);
 
@@ -76,7 +87,6 @@ async fn main() {
     );
 
     // send coordinator
-    // TODO: Consider recovering node
     coord_rw
         .write_line(&serde_json::to_string(&json!({ "addr": &addr })).unwrap())
         .await

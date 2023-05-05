@@ -1,8 +1,9 @@
+use lib::read_writer::ReadWriter;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, Map};
 use std::{error::Error, str::FromStr, sync::Arc};
 
-use super::{ReadWriter, get_type};
+use super::get_type;
 use crate::{Global, NodeID};
 
 mod account;
