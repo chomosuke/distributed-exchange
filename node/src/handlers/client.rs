@@ -12,7 +12,7 @@ mod market;
 mod order;
 mod stock;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserID {
     pub id: usize,
     pub node_id: NodeID,

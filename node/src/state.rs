@@ -4,7 +4,7 @@
 //! file name = 'state'
 //! file content = serde_json::to_string(StateFile)
 
-use std::{collections::HashMap, error::Error, fs::read_to_string, path::Path};
+use std::{collections::HashMap, error::Error, fs::read_to_string};
 
 use serde::{Deserialize, Serialize};
 use tokio::fs;
@@ -12,6 +12,7 @@ use tokio::fs;
 pub struct State {
     id: NodeID,
     accounts: Vec<Account>,
+    per_dir: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -21,10 +22,11 @@ struct StateFile {
 }
 
 impl State {
-    pub fn new(id: NodeID) -> Self {
+    pub fn new(id: NodeID, per_dir: String) -> Self {
         Self {
             id,
             accounts: Vec::new(),
+            per_dir,
         }
     }
 
@@ -38,11 +40,22 @@ impl State {
         Some(Self {
             id: state_file.id,
             accounts,
+            per_dir,
         })
     }
 
     pub fn get_id(&self) -> NodeID {
         self.id
+    }
+
+    pub async fn create_account(&mut self) -> Result<usize, Box<dyn Error>> {
+        let id = self.accounts.len();
+        self.accounts.push(Account::new(format!("{}/{id}", self.per_dir)).await?);
+        Ok(id)
+    }
+
+    pub fn get_account_mut(&mut self, id: usize) -> &mut Account {
+        &mut self.accounts[id]
     }
 }
 
@@ -52,8 +65,8 @@ pub type Ticker = String;
 pub type Quantity = u64;
 
 pub enum OrderType {
-    BUY,
-    SELL,
+    Buy,
+    Sell,
 }
 pub struct Order {
     order_type: OrderType,
@@ -62,6 +75,7 @@ pub struct Order {
     price: CentCount,
 }
 
+/// need to tell matcher seperately
 #[derive(Serialize, Deserialize)]
 pub struct Account {
     #[serde(skip)]
@@ -74,6 +88,18 @@ pub struct Account {
 }
 
 impl Account {
+    async fn new(path: String) -> Result<Self, Box<dyn Error>> {
+        let s = Self{
+            path,
+            balance: 0,
+            portfolio: HashMap::new(),
+            buys: HashMap::new(),
+            sells: HashMap::new(),
+        };
+        s.update_file().await?;
+        Ok(s)
+    }
+
     async fn update_file(&self) -> Result<(), Box<dyn Error>> {
         fs::write(&self.path, &serde_json::to_string(self)?).await?;
         Ok(())
@@ -96,36 +122,60 @@ impl Account {
         &self.portfolio
     }
 
-    pub async fn set_portfolio(&mut self, t: Ticker, q: Quantity) -> Result<(), Box<dyn Error>> {
-        if q == 0 {
-            self.portfolio.remove(&t);
-        } else {
-            self.portfolio.insert(t, q);
-        }
+    pub async fn add_stock(&mut self, t: Ticker, q: Quantity) -> Result<(), Box<dyn Error>> {
+        *self.portfolio.entry(t).or_default() += q;
         self.update_file().await
     }
 
+    pub async fn deduct_stock(
+        &mut self,
+        t: Ticker,
+        q: Quantity,
+    ) -> Result<Quantity, Box<dyn Error>> {
+        let current = self.portfolio.entry(t).or_default();
+        let deducted = (*current).min(q);
+        *current -= deducted;
+        self.update_file().await?;
+        Ok(deducted)
+    }
+
+
     pub async fn add_order(&mut self, o: Order) -> Result<(), Box<dyn Error>> {
-        let Order { order_type, ticker, quantity, price } = o;
+        let Order {
+            order_type,
+            ticker,
+            quantity,
+            price,
+        } = o;
         let orders = match order_type {
-            OrderType::BUY => &mut self.buys,
-            OrderType::SELL => &mut self.sells,
+            OrderType::Buy => &mut self.buys,
+            OrderType::Sell => &mut self.sells,
         };
 
         *orders.entry(ticker).or_default().entry(price).or_default() += quantity;
         self.update_file().await
     }
 
-    pub async fn cancel_order(&mut self, o: Order) -> Result<Quantity, Box<dyn Error>> {
-        let Order { order_type, ticker, quantity, price } = o;
+    /// can come from trade request or cancel order
+    pub async fn deduct_order(&mut self, o: Order) -> Result<Quantity, Box<dyn Error>> {
+        let Order {
+            order_type,
+            ticker,
+            quantity,
+            price,
+        } = o;
         let orders = match order_type {
-            OrderType::BUY => &mut self.buys,
-            OrderType::SELL => &mut self.sells,
+            OrderType::Buy => &mut self.buys,
+            OrderType::Sell => &mut self.sells,
         };
 
-        let q = orders.entry(ticker).or_default().entry(quantity).or_default();
-        let deducted = (*q).min(quantity);
-        *q -= deducted;
+        let current = orders
+            .entry(ticker)
+            .or_default()
+            .entry(price)
+            .or_default();
+        let deducted = (*current).min(quantity);
+        *current -= deducted;
         self.update_file().await?;
         Ok(deducted)
     }

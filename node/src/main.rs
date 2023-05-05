@@ -23,7 +23,7 @@ struct Args {
     addr: SocketAddr,
 
     #[structopt(short, long)]
-    presistant_dir: String,
+    persistent_dir: String,
 }
 
 enum Node {
@@ -68,10 +68,10 @@ async fn main() {
     let Args {
         addr,
         coordinator,
-        presistant_dir,
+        persistent_dir,
     } = Args::from_args();
 
-    let state = State::restore(presistant_dir).await;
+    let state = State::restore(persistent_dir.clone()).await;
 
     println!("Contacting coordinator on {}", coordinator);
 
@@ -100,8 +100,12 @@ async fn main() {
     let init_info: InitInfo =
         serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error.");
 
-    let state = state
-        .unwrap_or_else(|| State::new(init_info.id.expect("Expected NodeID from coordinator")));
+    let state = state.unwrap_or_else(|| {
+        State::new(
+            init_info.id.expect("Expected NodeID from coordinator"),
+            persistent_dir.clone(),
+        )
+    });
 
     println!("Node Id: {}", state.get_id());
 
