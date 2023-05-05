@@ -43,7 +43,7 @@ fn main() {
     println!("  l <account_id>   Login with your Account ID");
 
     loop {
-
+        todo!()
     }
 
 }

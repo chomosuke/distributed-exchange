@@ -1,14 +1,14 @@
-use std::{error::Error, str::FromStr, sync::Arc};
 use read_writer::ReadWriter;
+use serde_json::{Map, Value};
+use std::{error::Error, str::FromStr, sync::Arc};
 
 use crate::Global;
 
-mod client;
-mod node;
+pub mod client;
+pub mod coordinator;
+pub mod node;
 
-pub use node::Message;
-
-pub async fn handler(mut rw: ReadWriter<'_>, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
+pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
     let first_line = rw.read_line().await?;
 
     if let Ok(first_line) = client::FirstLine::from_str(&first_line) {
@@ -18,4 +18,17 @@ pub async fn handler(mut rw: ReadWriter<'_>, global: Arc<Global>) -> Result<Stri
     } else {
         Err(format!("{first_line} is not a valid request").into())
     }
+}
+
+fn get_type(s: &str) -> Result<String, Box<dyn Error>> {
+    let obj = serde_json::from_str(s)
+        .ok()
+        .and_then(|v: Value| serde_json::from_value::<Map<_, _>>(v).ok())
+        .ok_or("Not valid json object")?;
+
+    Ok(obj
+        .get("type")
+        .and_then(|v: &Value| v.as_str())
+        .ok_or("Doesn't have member type")?
+        .to_owned())
 }

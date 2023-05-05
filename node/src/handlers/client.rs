@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Value, Map};
 use std::{error::Error, str::FromStr, sync::Arc};
 
-use super::ReadWriter;
+use super::{ReadWriter, get_type};
 use crate::{Global, NodeID};
 
 mod account;
@@ -29,7 +29,7 @@ impl FromStr for FirstLine {
     }
 }
 
-struct Req {
+pub struct Req {
     crud: CRUD,
     target: Target,
     value: Option<Value>,
@@ -54,19 +54,17 @@ impl Req {
     fn from_str(s: &str) -> Result<Req, Box<dyn Error>> {
         let obj = serde_json::from_str(s)
             .ok()
-            .and_then(|v: Value| v.as_object())
-            .ok_or("Not valid json object or ")?;
+            .and_then(|v: Value| serde_json::from_value::<Map<_,_>>(v).ok())
+            .ok_or("Not valid json object.")?;
 
-        let t = obj
-            .get("type")
-            .and_then(|v: &Value| v.as_str())
-            .ok_or("Doesn't have member type")?
-            .as_bytes();
+        let t = get_type(s)?;
 
         let err: Result<Req, Box<dyn Error>> = Err(Box::from(format!(
-            "wrong type {}",
-            String::from_utf8(t.to_vec()).unwrap()
+            "Wrong type {}.",
+            t,
         )));
+
+        let t = t.into_bytes();
 
         if t.len() < 3 {
             return err;
@@ -93,6 +91,7 @@ impl Req {
             _ => return err,
         };
 
+        let mut obj = obj;
         Ok(Req {
             crud,
             target,
@@ -103,15 +102,15 @@ impl Req {
 
 pub async fn handler(
     FirstLine(user_id): FirstLine,
-    mut rw: ReadWriter<'_>,
+    mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     let req = Req::from_str(&rw.read_line().await?)?;
     match req.target {
-        Target::Account => account::handler(req, rw, global).await,
-        Target::Balance => balance::handler(req, rw, global).await,
-        Target::Market => market::handler(req, rw, global).await,
-        Target::Order => order::handler(req, rw, global).await,
-        Target::Stock => stock::handler(req, rw, global).await,
+        Target::Account => account::handler(user_id, req, rw, global).await,
+        Target::Balance => balance::handler(user_id, req, rw, global).await,
+        Target::Market => market::handler(user_id, req, rw, global).await,
+        Target::Order => order::handler(user_id, req, rw, global).await,
+        Target::Stock => stock::handler(user_id, req, rw, global).await,
     }
 }
