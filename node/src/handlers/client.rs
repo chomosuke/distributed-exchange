@@ -14,8 +14,8 @@ mod stock;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserID {
-    id: u64,
-    node_id: NodeID,
+    pub id: usize,
+    pub node_id: NodeID,
 }
 
 pub struct FirstLine(UserID);
