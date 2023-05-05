@@ -42,7 +42,35 @@ impl Matcher {
         }
     }
 
-    // pub fn deduct_order(&mut self, order: Order) -> Quantity {}
+    pub fn deduct_order(
+        &mut self,
+        Order {
+            order_type,
+            ticker,
+            user_id,
+            quantity,
+            price,
+        }: Order,
+    ) -> Result<(), Quantity> {
+        let mut to_deduct = quantity;
+        let existing_orders = match order_type {
+            OrderType::Buy => &mut self.buys,
+            OrderType::Sell => &mut self.sells,
+        }
+        .get_mut(&ticker)
+        .ok_or(0_u64)?
+        .get_mut(&price)
+        .ok_or(0_u64)?;
+        for (_, quantity) in existing_orders
+            .iter_mut()
+            .filter(|(other_user, _)| &user_id == other_user)
+        {
+            let deductable = min(to_deduct, *quantity);
+            to_deduct -= deductable;
+            *quantity -= deductable;
+        }
+        Ok(())
+    }
 
     pub fn add_order(
         &mut self,
@@ -70,11 +98,9 @@ impl Matcher {
         };
 
         'outer: for (other_price, existing_orders) in price_range {
-            for (other_user, quantity) in
-                existing_orders.iter_mut().filter(|(other_user, _)| {
-                    user_id.node_id == self.this_id || other_user.node_id == self.this_id
-                })
-            {
+            for (other_user, quantity) in existing_orders.iter_mut().filter(|(other_user, _)| {
+                user_id.node_id == self.this_id || other_user.node_id == self.this_id
+            }) {
                 let new_trade: Trade = Trade {
                     quantity: min(to_deduct, *quantity),
                     price: *other_price,
@@ -106,4 +132,3 @@ impl Matcher {
         proposed_trades
     }
 }
-

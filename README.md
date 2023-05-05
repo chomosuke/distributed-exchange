@@ -105,6 +105,8 @@ Message format one line per json message:
 - Establish connection
   - Send node_id (json number)
 
+  - UNIMPLEMENTED send all sell and buy order of own account to sync matcher
+
 ```json
 {
   "type": "order",
