@@ -1,6 +1,7 @@
-mod offer;
+mod offer_recv;
+mod offer_reply;
+mod offer_send;
 mod order;
-mod reply;
 
 use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
 use lib::read_writer::ReadWriter;
@@ -27,7 +28,7 @@ struct State {
 
 #[derive(Debug)]
 pub enum Message {
-    // Order(Order),
+    Matched(Trade),
 }
 
 type TradeID = usize;
@@ -84,7 +85,10 @@ pub async fn handler(
     loop {
         select! {
             msg = recver.recv() => {
-
+                let msg = msg.ok_or(format!("Channel for node {addr} closed!"))?;
+                let result = match msg {
+                    Message::Matched(trade) => offer_send::handler(trade, &mut rw, &global, &mut pending_offer).await?,
+                };
             },
             line = rw.read_line() => {
                 let line = line?;
@@ -92,8 +96,8 @@ pub async fn handler(
                 let value = value.ok_or("No value for request")?;
                 let result = match req_type.as_str() {
                     "order" => order::handler(&value, &mut rw, &global).await?,
-                    "offer" => offer::handler(&value, &mut rw, &global, &mut pending_offer).await?,
-                    "reply" => reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
+                    "offer" => offer_recv::handler(&value, &mut rw, &global).await?,
+                    "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
                 };
             },
