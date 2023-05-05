@@ -32,7 +32,7 @@ impl FromStr for FirstLine {
 
 pub async fn handler(
     first_line: FirstLine,
-    mut rw: ReadWriter<'_>,
+    mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     match first_line {

@@ -7,7 +7,7 @@ pub mod client;
 pub mod node;
 
 pub async fn handler(
-    mut rw: ReadWriter<'_>,
+    mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     let first_line = rw.read_line().await?;

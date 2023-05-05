@@ -52,16 +52,16 @@ async fn main() {
     let global: Arc<Global> = Arc::new(Global::new());
 
     loop {
-        let mut socket = match listener.accept().await {
-            Ok((socket, _)) => socket,
+        let rw = match listener.accept().await {
+            Ok((socket, _)) => ReadWriter::new(socket),
             Err(e) => {
                 eprintln!("Error receiving connection from a new server: {e}");
                 continue;
             }
         };
         let global = Arc::clone(&global);
-        tokio::spawn(async move {
-            match handler(ReadWriter::new(&mut socket), global).await {
+        tokio::spawn(async {
+            match handler(rw, global).await {
                 Ok(msg) => println!("Connection terminated successfully: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }

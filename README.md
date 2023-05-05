@@ -102,6 +102,8 @@ There are 3 kinds of message:
 Communication channel: TCP stream.
 
 Message format one line per json message:
+- Establish connection
+  - Send node_id (json number)
 
 ```json
 {

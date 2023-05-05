@@ -35,7 +35,7 @@ pub enum Message {
 
 pub async fn handler(
     first_line: FirstLine,
-    mut rw: ReadWriter<'_>,
+    mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     let mut server_records = global.server_records.write().await;

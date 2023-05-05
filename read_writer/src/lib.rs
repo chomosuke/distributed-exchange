@@ -1,24 +1,24 @@
 use std::error::Error;
 
 use tokio::{
-    io::{AsyncBufReadExt, BufReader, BufWriter, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{
-        tcp::{ReadHalf, WriteHalf},
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpStream,
     },
 };
 
-pub struct ReadWriter<'a> {
-    reader: BufReader<ReadHalf<'a>>,
-    writer: BufWriter<WriteHalf<'a>>,
+pub struct ReadWriter {
+    reader: BufReader<OwnedReadHalf>,
+    writer: BufWriter<OwnedWriteHalf>,
 }
 
-impl<'a> ReadWriter<'a> {
-    pub fn new(socket: &'a mut TcpStream) -> Self {
-        let (read_half, write_half) = socket.split();
+impl ReadWriter {
+    pub fn new(socket: TcpStream) -> Self {
+        let (r, w) = socket.into_split();
         Self {
-            reader: BufReader::new(read_half),
-            writer: BufWriter::new(write_half),
+            reader: BufReader::new(r),
+            writer: BufWriter::new(w),
         }
     }
 
