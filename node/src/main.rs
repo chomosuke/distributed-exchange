@@ -71,7 +71,7 @@ async fn main() {
         presistant_dir,
     } = Args::from_args();
 
-    let state = State::restore(presistant_dir);
+    let state = State::restore(presistant_dir).await;
 
     println!("Contacting coordinator on {}", coordinator);
 
