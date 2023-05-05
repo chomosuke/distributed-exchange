@@ -23,7 +23,7 @@ struct Args {
 struct NodeRecord {
     address: SocketAddr,
 
-    #[serde(skip_serializing)]
+    #[serde(skip)]
     sender: UnboundedSender<handlers::node::Message>,
 }
 

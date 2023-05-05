@@ -1,11 +1,12 @@
-mod accounts;
 mod handlers;
 mod matcher;
+mod state;
 
-use crate::{handlers::handler, accounts::Accounts};
+use crate::{handlers::handler, state::State};
 use lib::read_writer::ReadWriter;
 use serde::Deserialize;
 use serde_json::json;
+use state::NodeID;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use structopt::StructOpt;
 use tokio::{
@@ -32,17 +33,15 @@ enum Node {
     },
 }
 
-pub type NodeID = usize;
-
 pub struct Global {
-    id: NodeID,
+    state: RwLock<State>,
     others: RwLock<HashMap<NodeID, Node>>,
 }
 
 impl Global {
-    pub fn new(id: NodeID, others: Vec<NodeRecord>) -> Self {
+    pub fn new(state: State, others: Vec<NodeRecord>) -> Self {
         Self {
-            id,
+            state: RwLock::new(state),
             others: RwLock::new(
                 others
                     .iter()
@@ -72,8 +71,7 @@ async fn main() {
         presistant_dir,
     } = Args::from_args();
 
-    // apart from account file, everything is stored in the 'state' file
-    let mut accounts = Accounts::restore(presistant_dir);
+    let state = State::restore(presistant_dir);
 
     println!("Contacting coordinator on {}", coordinator);
 
@@ -88,20 +86,28 @@ async fn main() {
 
     // send coordinator
     coord_rw
-        .write_line(&serde_json::to_string(&json!({ "addr": &addr })).unwrap())
+        .write_line(
+            &serde_json::to_string(&json!({
+                "addr": &addr,
+                "id": state.as_ref().map(|s| s.get_id())
+            }))
+            .unwrap(),
+        )
         .await
         .unwrap();
 
     // Get Id from coordinator
     let init_info: InitInfo =
         serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error.");
-    let id = init_info.id.expect("TODO");
 
-    println!("Node Id: {}", id);
+    let state = state
+        .unwrap_or_else(|| State::new(init_info.id.expect("Expected NodeID from coordinator")));
+
+    println!("Node Id: {}", state.get_id());
 
     coord_rw.write_line("ok").await.expect("Write failed");
 
-    let global = Arc::new(Global::new(id, init_info.others));
+    let global = Arc::new(Global::new(state, init_info.others));
 
     {
         // spawn task to communicate with coordinator
