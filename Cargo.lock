@@ -64,6 +64,13 @@ dependencies = [
 [[package]]
 name = "client"
 version = "0.1.0"
+dependencies = [
+ "read_writer",
+ "serde",
+ "serde_json",
+ "structopt",
+ "tokio",
+]
 
 [[package]]
 name = "coordinator"

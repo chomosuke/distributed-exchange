@@ -19,15 +19,15 @@
 - Launch at least 2 clients:
   <!-- TODO: -->
 
-### Example run
+### Running example
 - Terminal 1:
   `cargo run -p coordinator -- -p 8000`
 - Terminal 2:
-  `cargo run -p node -- -c 127.0.0.1:8008 -p 8001`
+  `cargo run -p node -- -c 127.0.0.1:8000 -p 8001`
 - Terminal 3:
-  `cargo run -p node -- -c 127.0.0.1:8008 -p 8002`
+  `cargo run -p node -- -c 127.0.0.1:8000 -p 8002`
 - Terminal 4:
-  <!-- TODO: -->
+  `cargo run -p client -- -c 127.0.0.1:8000`
 - Terminal 5:
   <!-- TODO: -->
 

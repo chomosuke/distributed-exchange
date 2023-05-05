@@ -142,7 +142,3 @@ impl Matcher {
 // // Initialise local market representation
 // let buy_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
 // let sell_orders: HashMap<Ticker, BTreeMap<DollarAmount, Order>> = HashMap::new();
-
-// loop {
-//     todo!()
-// }
