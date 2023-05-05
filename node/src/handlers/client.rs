@@ -100,7 +100,11 @@ pub async fn handler(
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     loop {
-        let req = Req::from_str(&rw.read_line().await?)?;
+        let line = rw.read_line().await?;
+        if line == "bye" {
+            return Ok(format!("Connection with user {user_id:?} terminated."));
+        }
+        let req = Req::from_str(&line)?;
         let res = match req.target {
             Target::Account => account::handler(&user_id, &req, &mut rw, &global).await?,
             Target::Balance => balance::handler(&user_id, &req, &mut rw, &global).await?,

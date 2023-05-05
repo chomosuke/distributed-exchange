@@ -354,5 +354,9 @@ Message format one line per json message:
   ```json
   "Ok|NotEmpty"
   ```
+- Terminating Connection:
+  ```json
+  "bye"
+  ```
 
 ### Coordinator failure
