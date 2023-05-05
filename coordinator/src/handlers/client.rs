@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::{error::Error, str::FromStr, sync::Arc};
 use tokio::sync::oneshot;
 
-use super::{Message, ReadWriter};
+use super::{node::Message, ReadWriter};
 use crate::Global;
 
 #[derive(Debug, Serialize, Deserialize)]

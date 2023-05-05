@@ -1,5 +1,4 @@
 #![allow(clippy::new_without_default)]
-
 use std::{net::SocketAddr, sync::Arc};
 
 use read_writer::ReadWriter;
@@ -25,7 +24,7 @@ struct ServerRecord {
     address: SocketAddr,
 
     #[serde(skip_serializing)]
-    sender: UnboundedSender<handlers::Message>,
+    sender: UnboundedSender<handlers::node::Message>,
 }
 
 pub struct Global {

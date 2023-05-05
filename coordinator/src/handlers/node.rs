@@ -97,16 +97,20 @@ pub async fn handler(
                     "type": "joined",
                     "id": id,
                     "addr": addr,
-                }))?).await?;
+                }))?)
+                .await?;
             }
             Message::CAccount(sender) => {
                 rw.write_line(&serde_json::to_string(&json!({
                     "type": "C account",
-                }))?).await?;
+                }))?)
+                .await?;
 
                 let line = rw.read_line().await?;
-                sender.send(serde_json::from_str(&line)?).map_err(|_| line.clone())?;
-            },
+                sender
+                    .send(serde_json::from_str(&line)?)
+                    .map_err(|_| line.clone())?;
+            }
         }
     }
 }
