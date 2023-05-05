@@ -5,7 +5,7 @@ use crate::handlers::handler;
 use read_writer::ReadWriter;
 use serde::Deserialize;
 use serde_json::json;
-use std::{collections::HashMap, error::Error, future::Future, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use structopt::StructOpt;
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -21,7 +21,7 @@ struct Args {
     addr: SocketAddr,
 }
 
-enum Server {
+enum Node {
     DisConnected(SocketAddr),
     Connected {
         sender: UnboundedSender<handlers::node::Message>,
@@ -32,17 +32,17 @@ pub type NodeID = usize;
 
 pub struct Global {
     id: NodeID,
-    others: RwLock<HashMap<NodeID, Server>>,
+    others: RwLock<HashMap<NodeID, Node>>,
 }
 
 impl Global {
-    pub fn new(id: NodeID, others: Vec<ServerRecord>) -> Self {
+    pub fn new(id: NodeID, others: Vec<NodeRecord>) -> Self {
         Self {
             id,
             others: RwLock::new(
                 others
                     .iter()
-                    .map(|sr| (sr.id, Server::DisConnected(sr.address)))
+                    .map(|sr| (sr.id, Node::DisConnected(sr.address)))
                     .collect(),
             ),
         }
@@ -52,10 +52,10 @@ impl Global {
 #[derive(Deserialize)]
 struct InitInfo {
     id: Option<NodeID>,
-    others: Vec<ServerRecord>,
+    others: Vec<NodeRecord>,
 }
 #[derive(Deserialize)]
-pub struct ServerRecord {
+pub struct NodeRecord {
     id: NodeID,
     address: SocketAddr,
 }
@@ -87,7 +87,7 @@ async fn main() {
         serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error.");
     let id = init_info.id.expect("TODO");
 
-    println!("Server Id: {}", id);
+    println!("Node Id: {}", id);
 
     coord_rw.write_line("ok").await.expect("Write failed");
 

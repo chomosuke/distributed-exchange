@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, net::SocketAddr};
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
@@ -9,14 +9,17 @@ use tokio::{
 };
 
 pub struct ReadWriter {
+    peer_addr: Result<SocketAddr, String>,
     reader: BufReader<OwnedReadHalf>,
     writer: BufWriter<OwnedWriteHalf>,
 }
 
 impl ReadWriter {
     pub fn new(socket: TcpStream) -> Self {
+        let peer_addr = socket.peer_addr().map_err(|e| e.to_string());
         let (r, w) = socket.into_split();
         Self {
+            peer_addr,
             reader: BufReader::new(r),
             writer: BufWriter::new(w),
         }
@@ -33,5 +36,9 @@ impl ReadWriter {
         let mut line = String::new();
         self.reader.read_line(&mut line).await?;
         Ok(line)
+    }
+
+    pub fn peer_addr(&self) -> Result<SocketAddr, String> {
+        self.peer_addr.clone()
     }
 }
