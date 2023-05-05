@@ -1,18 +1,35 @@
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::{error::Error, str::FromStr, sync::Arc};
-use tokio::sync::oneshot;
 
-use super::{Message, ReadWriter};
-use crate::Global;
+use super::ReadWriter;
+use crate::{Global, NodeID};
+
+mod account;
+mod balance;
+mod market;
+mod order;
+mod stock;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserID {
     id: u64,
-    node_id: usize,
+    node_id: NodeID,
 }
 
-pub struct FirstLine {
+pub struct FirstLine(UserID);
+
+impl FromStr for FirstLine {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(FirstLine(serde_json::from_str(s).map_err(|_| {
+            "Did not match first line for client".to_owned()
+        })?))
+    }
+}
+
+struct Req {
     crud: CRUD,
     target: Target,
     value: Option<Value>,
@@ -33,10 +50,8 @@ enum Target {
     Account,
 }
 
-impl FromStr for FirstLine {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl Req {
+    fn from_str(s: &str) -> Result<Req, Box<dyn Error>> {
         let obj = serde_json::from_str(s)
             .ok()
             .and_then(|v: Value| v.as_object())
@@ -48,7 +63,10 @@ impl FromStr for FirstLine {
             .ok_or("Doesn't have member type")?
             .as_bytes();
 
-        let err = Err("Did not match first line for client".into());
+        let err: Result<Req, Box<dyn Error>> = Err(Box::from(format!(
+            "wrong type {}",
+            String::from_utf8(t.to_vec()).unwrap()
+        )));
 
         if t.len() < 3 {
             return err;
@@ -75,56 +93,25 @@ impl FromStr for FirstLine {
             _ => return err,
         };
 
-        Ok(FirstLine {
+        Ok(Req {
             crud,
             target,
-            value: obj.get("value").cloned(),
+            value: obj.remove("value"),
         })
     }
 }
 
 pub async fn handler(
-    first_line: FirstLine,
+    FirstLine(user_id): FirstLine,
     mut rw: ReadWriter<'_>,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
-    match first_line {
-        FirstLine::FindNode(user_id) => {
-            let server_records = global.server_records.read().await;
-            let addr = server_records[user_id.node_id].address;
-
-            rw.write_line(&addr.to_string()).await?;
-
-            Ok(format!(
-                "Found node {} for account {{ id: {}, node_id {} }}.",
-                addr, user_id.id, user_id.node_id
-            ))
-        }
-        FirstLine::CAccount => {
-            let account_nums = global.account_nums.read().await;
-            let server_records = global.server_records.read().await;
-
-            let mut min_acc = 0;
-            for i in 0..account_nums.len() {
-                if account_nums[i] < account_nums[min_acc] {
-                    min_acc = i;
-                }
-            }
-
-            let (sender, recver) = oneshot::channel();
-
-            server_records[min_acc]
-                .sender
-                .send(Message::CAccount(sender))?;
-
-            let user_id = recver.await?;
-
-            rw.write_line(&serde_json::to_string(&user_id)?).await?;
-
-            Ok(format!(
-                "Created account {{ id: {}, node_id {} }}.",
-                user_id.id, user_id.node_id
-            ))
-        }
+    let req = Req::from_str(&rw.read_line().await?)?;
+    match req.target {
+        Target::Account => account::handler(req, rw, global).await,
+        Target::Balance => balance::handler(req, rw, global).await,
+        Target::Market => market::handler(req, rw, global).await,
+        Target::Order => order::handler(req, rw, global).await,
+        Target::Stock => stock::handler(req, rw, global).await,
     }
 }
