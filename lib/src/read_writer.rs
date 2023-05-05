@@ -33,9 +33,9 @@ impl ReadWriter {
     }
 
     pub async fn read_line(&mut self) -> Result<String, Box<dyn Error>> {
-        let mut line = String::new();
-        self.reader.read_line(&mut line).await?;
-        Ok(line)
+        let mut line = Vec::new();
+        self.reader.read_until(b'\n', &mut line).await?;
+        Ok(String::from_utf8(line)?)
     }
 
     pub fn peer_addr(&self) -> Result<SocketAddr, String> {

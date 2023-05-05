@@ -50,7 +50,8 @@ impl State {
 
     pub async fn create_account(&mut self) -> Result<usize, Box<dyn Error>> {
         let id = self.accounts.len();
-        self.accounts.push(Account::new(format!("{}/{id}", self.per_dir)).await?);
+        self.accounts
+            .push(Account::new(format!("{}/{id}", self.per_dir)).await?);
         Ok(id)
     }
 
@@ -64,15 +65,18 @@ pub type CentCount = u64;
 pub type Ticker = String;
 pub type Quantity = u64;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum OrderType {
+    #[serde(rename = "buy")]
     Buy,
+    #[serde(rename = "sell")]
     Sell,
 }
 pub struct Order {
-    order_type: OrderType,
-    ticker: Ticker,
-    quantity: Quantity,
-    price: CentCount,
+    pub order_type: OrderType,
+    pub ticker: Ticker,
+    pub quantity: Quantity,
+    pub price: CentCount,
 }
 
 /// need to tell matcher seperately
@@ -89,7 +93,7 @@ pub struct Account {
 
 impl Account {
     async fn new(path: String) -> Result<Self, Box<dyn Error>> {
-        let s = Self{
+        let s = Self {
             path,
             balance: 0,
             portfolio: HashMap::new(),
@@ -139,14 +143,15 @@ impl Account {
         Ok(deducted)
     }
 
-
-    pub async fn add_order(&mut self, o: Order) -> Result<(), Box<dyn Error>> {
-        let Order {
+    pub async fn add_order(
+        &mut self,
+        Order {
             order_type,
             ticker,
             quantity,
             price,
-        } = o;
+        }: Order,
+    ) -> Result<(), Box<dyn Error>> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,
@@ -157,23 +162,21 @@ impl Account {
     }
 
     /// can come from trade request or cancel order
-    pub async fn deduct_order(&mut self, o: Order) -> Result<Quantity, Box<dyn Error>> {
-        let Order {
+    pub async fn deduct_order(
+        &mut self,
+        Order {
             order_type,
             ticker,
             quantity,
             price,
-        } = o;
+        }: Order,
+    ) -> Result<Quantity, Box<dyn Error>> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,
         };
 
-        let current = orders
-            .entry(ticker)
-            .or_default()
-            .entry(price)
-            .or_default();
+        let current = orders.entry(ticker).or_default().entry(price).or_default();
         let deducted = (*current).min(quantity);
         *current -= deducted;
         self.update_file().await?;

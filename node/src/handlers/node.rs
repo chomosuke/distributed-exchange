@@ -1,9 +1,12 @@
-use lib::read_writer::ReadWriter;
-use serde::Deserialize;
-use std::{error::Error, str::FromStr, sync::Arc};
-use tokio::sync::mpsc;
+mod offer;
+mod order;
+mod reply;
 
-use crate::{Global, Node, NodeID};
+use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
+use lib::read_writer::ReadWriter;
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc};
+use tokio::{select, sync::mpsc};
 
 #[derive(Deserialize)]
 pub struct FirstLine(pub NodeID);
@@ -24,9 +27,28 @@ struct State {
 
 #[derive(Debug)]
 pub enum Message {
-    Order {
-        t: String,
-    },
+    // Order(Order),
+}
+
+type TradeID = usize;
+
+#[derive(Serialize, Deserialize)]
+struct Offer {
+    id: TradeID,
+
+    #[serde(flatten)]
+    trade: Trade,
+}
+
+#[derive(Serialize, Deserialize)]
+struct OfferReply {
+    id: TradeID,
+    accepted: bool,
+}
+
+struct PendingOffer {
+    pending: HashMap<TradeID, Trade>,
+    next_trade_id: TradeID,
 }
 
 pub async fn handler(
@@ -54,7 +76,27 @@ pub async fn handler(
 
     println!("Connected with Node {id} from addr {addr}");
 
-    loop {
+    let mut pending_offer = PendingOffer {
+        pending: HashMap::new(),
+        next_trade_id: 0,
+    };
 
+    loop {
+        select! {
+            msg = recver.recv() => {
+
+            },
+            line = rw.read_line() => {
+                let line = line?;
+                let (req_type, value) = get_value_type(&line)?;
+                let value = value.ok_or("No value for request")?;
+                let result = match req_type.as_str() {
+                    "order" => order::handler(&value, &mut rw, &global).await?,
+                    "offer" => offer::handler(&value, &mut rw, &global, &mut pending_offer).await?,
+                    "reply" => reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
+                    req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
+                };
+            },
+        }
     }
 }

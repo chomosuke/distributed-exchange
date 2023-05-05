@@ -6,25 +6,29 @@ use std::{
     collections::{BTreeMap, HashMap, VecDeque},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     handlers::client::UserID,
     state::{CentCount, NodeID, OrderType, Quantity, Ticker},
 };
 
-struct Order {
-    order_type: OrderType,
-    ticker: Ticker,
-    user_id: UserID,
-    quantity: Quantity,
-    price: CentCount,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Order {
+    pub order_type: OrderType,
+    pub ticker: Ticker,
+    pub user_id: UserID,
+    pub quantity: Quantity,
+    pub price: CentCount,
 }
 
-struct Trade {
-    quantity: Quantity,
-    price: CentCount,
-    ticker: Ticker,
-    buyer_id: UserID,
-    seller_id: UserID,
+#[derive(Serialize, Deserialize)]
+pub struct Trade {
+    pub quantity: Quantity,
+    pub price: CentCount,
+    pub ticker: Ticker,
+    pub buyer_id: UserID,
+    pub seller_id: UserID,
 }
 
 struct Matcher {

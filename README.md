@@ -20,6 +20,7 @@
   <!-- TODO: -->
 
 ### Running example
+
 - Terminal 1:
   `cargo run -p coordinator -- -p 8000`
 - Terminal 2:
@@ -88,8 +89,7 @@ types:
   ```
 - TradeID is an integer.
 - Ticker is a string.
-
-TCP will be wrap in keepalive messaging of 10 seconds
+- All price are in unit of cents
 
 ### Node2Node
 
@@ -102,7 +102,9 @@ There are 3 kinds of message:
 Communication channel: TCP stream.
 
 Message format one line per json message:
+
 - Establish connection
+
   - Send node_id (json number)
 
   - UNIMPLEMENTED send all sell and buy order of own account to sync matcher
@@ -111,11 +113,11 @@ Message format one line per json message:
 {
   "type": "order",
   "value": {
-    "type": "buy|sell",
+    "order_type": "buy|sell",
     "ticker": "Ticker",
     "user_id": "UserID",
     "quantity": 100,
-    "price": 10.5
+    "price": 1050
   }
 }
 ```
@@ -129,7 +131,7 @@ Message format one line per json message:
     "buyer_id": "UserID",
     "seller_id": "UserID",
     "quantity": 100,
-    "price": 10.5
+    "price": 1050
   }
 }
 ```
@@ -279,7 +281,7 @@ Message format one line per json message:
       "sell": [
         {
           "quantity": 100,
-          "price": 10.55
+          "price": 1050
         }
       ],
       "buy": []
@@ -297,7 +299,7 @@ Message format one line per json message:
     "type": "C order",
     "value": {
       "ticker": "tickerID",
-      "price": 10.5,
+      "price": 1050,
       "quantity": 100
     }
   }
@@ -317,7 +319,7 @@ Message format one line per json message:
       "sell": [
         {
           "quantity": 100,
-          "price": 10.55
+          "price": 1055
         }
       ],
       "buy": []
@@ -334,7 +336,7 @@ Message format one line per json message:
     "type": "D order",
     "value": {
       "ticker": "tickerID",
-      "price": 10.5,
+      "price": 1050,
       "quantity": 100
     }
   }
