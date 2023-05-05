@@ -5,7 +5,7 @@ use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
 use tokio::sync::{mpsc, oneshot::Sender};
 
 use super::client::UserID;
-use crate::{Global, ServerRecord};
+use crate::{Global, NodeRecord};
 
 #[derive(Deserialize)]
 pub struct FirstLine {
@@ -38,17 +38,17 @@ pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
-    let mut server_records = global.server_records.write().await;
+    let mut node_records = global.node_records.write().await;
     let mut account_nums = global.account_nums.write().await;
     let id = first_line
         .state
         .as_ref()
         .map(|s| s.id)
-        .unwrap_or(server_records.len());
+        .unwrap_or(node_records.len());
     let addr = first_line.addr;
     let rep = serde_json::to_string(&json!({
         "id": id,
-        "others": server_records
+        "others": node_records
             .iter()
             .enumerate()
             .map(|(i, r)| json!({"id": i, "addr": r.address}))
@@ -59,11 +59,11 @@ pub async fn handler(
 
     let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {
-        server_records[id].address = addr;
+        node_records[id].address = addr;
         account_nums[id] = state.account_num;
-        server_records[id].sender = sender;
+        node_records[id].sender = sender;
     } else {
-        server_records.push(ServerRecord {
+        node_records.push(NodeRecord {
             address: first_line.addr,
             sender,
         });
@@ -76,13 +76,13 @@ pub async fn handler(
     }
 
     // inform all other nodes that this node has joined
-    for i in 0..(server_records.len() - 1) {
-        let server_record = &server_records[i];
-        server_record.sender.send(Message::Joined(id, addr))?;
+    for i in 0..(node_records.len() - 1) {
+        let node_record = &node_records[i];
+        node_record.sender.send(Message::Joined(id, addr))?;
     }
 
     // release the write lock
-    drop(server_records);
+    drop(node_records);
     drop(account_nums);
 
     loop {

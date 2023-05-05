@@ -20,7 +20,7 @@ struct Args {
 }
 
 #[derive(Serialize)]
-struct ServerRecord {
+struct NodeRecord {
     address: SocketAddr,
 
     #[serde(skip_serializing)]
@@ -28,14 +28,14 @@ struct ServerRecord {
 }
 
 pub struct Global {
-    server_records: RwLock<Vec<ServerRecord>>,
+    node_records: RwLock<Vec<NodeRecord>>,
     account_nums: RwLock<Vec<u64>>,
 }
 
 impl Global {
     pub fn new() -> Self {
         Self {
-            server_records: RwLock::new(Vec::new()),
+            node_records: RwLock::new(Vec::new()),
             account_nums: RwLock::new(Vec::new()),
         }
     }
@@ -55,7 +55,7 @@ async fn main() {
         let rw = match listener.accept().await {
             Ok((socket, _)) => ReadWriter::new(socket),
             Err(e) => {
-                eprintln!("Error receiving connection from a new server: {e}");
+                eprintln!("Error receiving connection from a new node: {e}");
                 continue;
             }
         };

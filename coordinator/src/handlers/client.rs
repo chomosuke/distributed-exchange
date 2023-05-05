@@ -37,8 +37,8 @@ pub async fn handler(
 ) -> Result<String, Box<dyn Error>> {
     match first_line {
         FirstLine::FindNode(user_id) => {
-            let server_records = global.server_records.read().await;
-            let addr = server_records[user_id.node_id].address;
+            let node_records = global.node_records.read().await;
+            let addr = node_records[user_id.node_id].address;
 
             rw.write_line(&addr.to_string()).await?;
 
@@ -49,7 +49,7 @@ pub async fn handler(
         }
         FirstLine::CAccount => {
             let account_nums = global.account_nums.read().await;
-            let server_records = global.server_records.read().await;
+            let node_records = global.node_records.read().await;
 
             let mut min_acc = 0;
             for i in 0..account_nums.len() {
@@ -60,7 +60,7 @@ pub async fn handler(
 
             let (sender, recver) = oneshot::channel();
 
-            server_records[min_acc]
+            node_records[min_acc]
                 .sender
                 .send(Message::CAccount(sender))?;
 

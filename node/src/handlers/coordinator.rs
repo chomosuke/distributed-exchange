@@ -4,7 +4,7 @@ use read_writer::ReadWriter;
 use serde::Deserialize;
 use tokio::net::TcpStream;
 
-use crate::{Global, NodeID, Server};
+use crate::{Global, NodeID, Node};
 
 use super::{get_type, node};
 
@@ -27,7 +27,7 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> Result<String, 
                 .others
                 .write()
                 .await
-                .insert(id, Server::DisConnected(addr));
+                .insert(id, Node::DisConnected(addr));
 
             let mut rw = ReadWriter::new(
                 TcpStream::connect(addr)

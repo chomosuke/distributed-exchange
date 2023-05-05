@@ -1,10 +1,9 @@
 use read_writer::ReadWriter;
 use serde::Deserialize;
-use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
-use tokio::sync::oneshot::Sender;
+use std::{error::Error, str::FromStr, sync::Arc};
+use tokio::sync::mpsc;
 
-use super::client::UserID;
-use crate::{Global, NodeID};
+use crate::{Global, Node, NodeID};
 
 #[derive(Deserialize)]
 pub struct FirstLine(pub NodeID);
@@ -25,16 +24,36 @@ struct State {
 
 #[derive(Debug)]
 pub enum Message {
-    Joined(NodeID, SocketAddr),
-    CAccount(Sender<UserID>),
+    Order {
+        t: String,
+    },
 }
 
 pub async fn handler(
-    first_line: FirstLine,
+    FirstLine(id): FirstLine,
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> Result<String, Box<dyn Error>> {
     let mut others = global.others.write().await;
+    let addr = rw.peer_addr()?;
 
-    todo!()
+    // check if expecting
+    if let Some(Node::DisConnected(expected_addr)) = others.get_mut(&id) {
+        if expected_addr == &addr {
+            Ok(())
+        } else {
+            Err(format!("Not expecting node {id} from {addr}"))
+        }
+    } else {
+        Err(format!("Not expecting node {id}"))
+    }?;
+
+    let (sender, mut recver) = mpsc::unbounded_channel();
+
+    others.insert(id, Node::Connected { sender });
+
+    println!("Connected with Node {id} from addr {addr}");
+
+    loop {
+    }
 }
