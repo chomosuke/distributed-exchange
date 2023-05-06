@@ -243,7 +243,7 @@ Message format one line per json message:
   ```
   rep:
   ```json
-  100 // amount deducted
+  "ok"
   ```
 - CR for stocks in account.
   req:
@@ -350,7 +350,7 @@ Message format one line per json message:
   ```
   rep:
   ```json
-  "Ok|NotEmpty"
+  "ok|notEmpty"
   ```
 - Terminating Connection:
   ```json

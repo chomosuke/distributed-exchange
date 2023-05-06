@@ -1,15 +1,15 @@
-use super::{Req, UserID, CRUD};
+use super::{Req, UserID, Crud};
 use crate::Global;
 use lib::GResult;
 use std::sync::Arc;
 
 pub async fn handler(
     user_id: &UserID,
-    Req { crud, value, .. }: &Req,
+    Req { crud, .. }: &Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
     match crud {
-        CRUD::Delete => {
+        Crud::Delete => {
             let mut state = global.state.write().await;
             let account = state
                 .get_accounts_mut()
@@ -19,10 +19,10 @@ pub async fn handler(
             match delete_status {
                 Ok(()) => {
                     state.get_accounts_mut().remove(&user_id.id);
-                    Ok("\"Ok\"".to_string())
+                    Ok("\"ok\"".to_string())
                 }
-                Err(msg) => {
-                    Ok("\"NotEmpty\"".to_string())
+                Err(_msg) => {
+                    Ok("\"notEmpty\"".to_string())
                 }
             }
         }

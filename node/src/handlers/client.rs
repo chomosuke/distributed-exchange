@@ -31,13 +31,13 @@ impl FromStr for FirstLine {
 
 #[derive(Debug)]
 pub struct Req {
-    crud: CRUD,
+    crud: Crud,
     target: Target,
     value: Option<Value>,
 }
 
 #[derive(Debug)]
-enum CRUD {
+enum Crud {
     Create,
     Read,
     Update,
@@ -66,10 +66,10 @@ impl Req {
         }
 
         let crud = match t[0] {
-            b'C' => CRUD::Create,
-            b'R' => CRUD::Read,
-            b'U' => CRUD::Update,
-            b'D' => CRUD::Delete,
+            b'C' => Crud::Create,
+            b'R' => Crud::Read,
+            b'U' => Crud::Update,
+            b'D' => Crud::Delete,
             _ => return err,
         };
 
@@ -118,9 +118,9 @@ pub async fn handler(
             // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
             // Target::Stock => stock::handler(&user_id, &account, &req, &mut rw, &global).await?,
         };
-        rw.write_line(&res);
+        rw.write_line(&res).await?;
         println!("repsonded request {req:?} from client {user_id:?} with {res:?}");
-        if matches!(req.target, Target::Account) && matches!(req.crud, CRUD::Delete) {
+        if matches!(req.target, Target::Account) && matches!(req.crud, Crud::Delete) {
             return Ok(format!(
                 "Connection with user {user_id:?} terminated as account deleted."
             ));

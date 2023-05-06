@@ -1,7 +1,7 @@
 use crate::Global;
 use lib::{read_writer::ReadWriter, GResult};
 use serde_json::{Map, Value};
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 pub mod client;
 pub mod coordinator;
