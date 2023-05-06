@@ -305,6 +305,7 @@ Message format one line per json message:
   {
     "type": "C order",
     "value": {
+      "order_type": "buy|sell",
       "ticker": "tickerID",
       "price": 1050,
       "quantity": 100
@@ -342,6 +343,7 @@ Message format one line per json message:
   {
     "type": "D order",
     "value": {
+      "order_type": "buy|sell",
       "ticker": "tickerID",
       "price": 1050,
       "quantity": 100
