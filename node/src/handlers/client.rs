@@ -1,6 +1,6 @@
 use super::get_value_type;
 use crate::Global;
-use lib::{interfaces::UserID, read_writer::ReadWriter, GResult, lock::DeadLockDetect};
+use lib::{interfaces::UserID, lock::DeadLockDetect, read_writer::ReadWriter, GResult};
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
 
@@ -114,7 +114,7 @@ pub async fn handler(
         };
         rw.write_line(&res).await?;
         println!("repsonded request {line} from client {user_id:?} with {res:?}");
-        if matches!(target, Target::Account) && matches!(crud, Crud::Delete) {
+        if matches!(target, Target::Account) && matches!(crud, Crud::Delete) && res == "\"ok\"" {
             return Ok(format!(
                 "Connection with user {user_id:?} terminated as account deleted."
             ));

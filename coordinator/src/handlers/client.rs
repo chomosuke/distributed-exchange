@@ -52,8 +52,8 @@ pub async fn handler(
                     min_acc = i;
                 }
             }
-
-            account_nums.set_num(min_acc, 1).await;
+            let min_num = a_nums[min_acc];
+            account_nums.set_num(min_acc, min_num + 1).await;
 
             let (sender, recver) = oneshot::channel();
 
