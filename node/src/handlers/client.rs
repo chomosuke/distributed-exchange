@@ -9,7 +9,7 @@ mod account;
 mod balance;
 mod market;
 // mod order;
-// mod stock;
+mod stock;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct UserID {
@@ -36,7 +36,7 @@ pub struct Req {
     value: Option<Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Crud {
     Create,
     Read,
@@ -44,7 +44,7 @@ enum Crud {
     Delete,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 enum Target {
     Balance,
     Stock,
@@ -110,17 +110,19 @@ pub async fn handler(
             return Ok(format!("Connection with user {user_id:?} terminated."));
         }
         let req = Req::from_str(&line)?;
+        let target = req.target;
+        let crud = req.crud;
         let res = match req.target {
-            Target::Account => account::handler(&user_id, &req, &global).await?,
-            Target::Balance => balance::handler(&user_id, &req, &global).await?,
-            Target::Market => market::handler(&req, &global).await?,
-            _ => return Err(Box::from("")),
+            Target::Account => account::handler(&user_id, req, &global).await?,
+            Target::Balance => balance::handler(&user_id, req, &global).await?,
+            Target::Market => market::handler(req, &global).await?,
             // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
-            // Target::Stock => stock::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            Target::Stock => stock::handler(&user_id, req, &global).await?,
+            _ => return Err(Box::from("")),
         };
         rw.write_line(&res).await?;
-        println!("repsonded request {req:?} from client {user_id:?} with {res:?}");
-        if matches!(req.target, Target::Account) && matches!(req.crud, Crud::Delete) {
+        println!("repsonded request {line} from client {user_id:?} with {res:?}");
+        if matches!(target, Target::Account) && matches!(crud, Crud::Delete) {
             return Ok(format!(
                 "Connection with user {user_id:?} terminated as account deleted."
             ));

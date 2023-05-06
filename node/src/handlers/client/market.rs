@@ -3,7 +3,7 @@ use crate::Global;
 use lib::GResult;
 use std::sync::Arc;
 
-pub async fn handler(Req { crud, .. }: &Req, global: &Arc<Global>) -> GResult<String> {
+pub async fn handler(Req { crud, .. }: Req, global: &Arc<Global>) -> GResult<String> {
     match crud {
         Crud::Read => {
             let matcher = global.matcher.read().await;

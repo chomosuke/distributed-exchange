@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 pub async fn handler(
     user_id: &UserID,
-    Req { crud, value, .. }: &Req,
+    Req { crud, value, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
     let state = global.state.read().await;

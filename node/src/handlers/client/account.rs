@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 pub async fn handler(
     user_id: &UserID,
-    Req { crud, .. }: &Req,
+    Req { crud, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
     match crud {

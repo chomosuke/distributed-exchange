@@ -1,13 +1,36 @@
-use super::{Req, UserID, CRUD};
+use super::{Crud, Req, UserID};
 use crate::Global;
-use lib::{read_writer::ReadWriter, GResult};
-use std::{error::Error, sync::Arc};
+use lib::GResult;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+
+#[derive(Serialize, Deserialize)]
+struct CStockV {
+    ticker_id: String,
+    quantity: u64,
+}
 
 pub async fn handler(
     user_id: &UserID,
-    Req { crud, value, .. }: &Req,
-    rw: &mut ReadWriter,
+    Req { crud, value, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
-    todo!()
+    let state = global.state.read().await;
+    let account = state
+        .get_accounts()
+        .get(&user_id.id)
+        .ok_or("Invalid account")?;
+    match crud {
+        Crud::Read => {
+            let account = account.read().await;
+            Ok(serde_json::to_string(account.get_portfolio())?)
+        }
+        Crud::Create => {
+            let account = &mut account.write().await;
+            let req: CStockV = serde_json::from_value(value.ok_or("Bad value".to_string())?)?;
+            account.add_stock(req.ticker_id, req.quantity).await?;
+            Ok("\"ok\"".to_string())
+        }
+        _ => Err(Box::from(format!("Can not {crud:?} market."))),
+    }
 }
