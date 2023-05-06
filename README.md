@@ -175,7 +175,7 @@ Message format one line per json message:
   ```json
   "ok" // recieved and prepared to connect with all other nodes
   ```
-  - req rep messages
+  - req res messages
     - New / recovered node joined:
       req:
     ```json
@@ -185,13 +185,13 @@ Message format one line per json message:
       "addr": "<node addr>"
     }
     ```
-    rep: No Reply
+    res: No Reply
     - New account request
       req:
     ```json
     { "type": "C account" }
     ```
-    rep:
+    res:
     ```json
     "UserID"
     ```
@@ -204,7 +204,7 @@ Message format one line per json message:
   ```json
   "UserID"
   ```
-  rep:
+  res:
   ```
   "<node addr>" // to be parsed by SocketAddr::parse()
   ```
@@ -215,7 +215,7 @@ Message format one line per json message:
   ```json
   "C Account"
   ```
-  rep:
+  res:
   ```json
   "UserID"
   ```
@@ -226,11 +226,12 @@ Message format one line per json message:
 - Establish connection
   - Client send UserID
 - RU for account balance.
+
   req:
   ```json
   { "type": "R balance" }
   ```
-  rep:
+  res:
   ```json
   100
   ```
@@ -241,16 +242,17 @@ Message format one line per json message:
     "value": 100
   }
   ```
-  rep:
+  res:
   ```json
   "ok"
   ```
 - CR for stocks in account.
+
   req:
   ```json
   { "type": "R stock" }
   ```
-  rep:
+  res:
   ```json
   {
     "tickerID": 100,
@@ -267,12 +269,16 @@ Message format one line per json message:
     }
   }
   ```
+  res:
+  ```
+  "ok"
+  ```
 - R for market status.
   req:
   ```json
   { "type": "R market" }
   ```
-  rep:
+  res:
   ```json
   {
     "tickerID": {
@@ -302,7 +308,7 @@ Message format one line per json message:
     }
   }
   ```
-  rep:
+  res:
   ```json
   "ok"
   ```
@@ -310,7 +316,7 @@ Message format one line per json message:
   ```json
   { "type": "R order" }
   ```
-  rep:
+  res:
   ```json
   {
     "tickerID": {
@@ -339,7 +345,7 @@ Message format one line per json message:
     }
   }
   ```
-  rep:
+  res:
   ```json
   90 // quantity deleted (the rest already traded or didn't exist in the first place)
   ```
@@ -348,7 +354,7 @@ Message format one line per json message:
   ```json
   { "type": "D account" }
   ```
-  rep:
+  res:
   ```json
   "ok|notEmpty"
   ```

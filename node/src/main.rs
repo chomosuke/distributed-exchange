@@ -4,17 +4,16 @@ mod state;
 
 use crate::{handlers::handler, state::State};
 use lib::read_writer::ReadWriter;
+use matcher::Matcher;
 use serde::Deserialize;
 use serde_json::json;
 use state::NodeID;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc, error::Error};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use structopt::StructOpt;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{mpsc::UnboundedSender, RwLock},
 };
-
-type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(StructOpt)]
 struct Args {
@@ -36,6 +35,7 @@ enum Node {
 }
 
 pub struct Global {
+    matcher: RwLock<Matcher>,
     state: RwLock<State>,
     others: RwLock<HashMap<NodeID, Node>>,
 }
@@ -43,6 +43,7 @@ pub struct Global {
 impl Global {
     pub fn new(state: State, others: Vec<NodeRecord>) -> Self {
         Self {
+            matcher: RwLock::new(Matcher::new(state.get_id())),
             state: RwLock::new(state),
             others: RwLock::new(
                 others

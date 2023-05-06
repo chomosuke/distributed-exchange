@@ -7,7 +7,7 @@ use std::{str::FromStr, sync::Arc};
 
 mod account;
 mod balance;
-// mod market;
+mod market;
 // mod order;
 // mod stock;
 
@@ -113,8 +113,8 @@ pub async fn handler(
         let res = match req.target {
             Target::Account => account::handler(&user_id, &req, &global).await?,
             Target::Balance => balance::handler(&user_id, &req, &global).await?,
+            Target::Market => market::handler(&req, &global).await?,
             _ => return Err(Box::from("")),
-            // Target::Market => market::handler(&user_id, &account, &req, &mut rw, &global).await?,
             // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
             // Target::Stock => stock::handler(&user_id, &account, &req, &mut rw, &global).await?,
         };

@@ -21,6 +21,6 @@ pub async fn handler(
             account.set_balance(new_balance).await?;
             Ok("\"ok\"".to_string())
         }
-        _ => Err(Box::from(format!("Can not {crud:?} account."))),
+        _ => Err(Box::from(format!("Can not {crud:?} balance."))),
     }
 }

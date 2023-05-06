@@ -1,15 +1,14 @@
-use super::{Req, UserID, CRUD};
+use super::{Req, Crud};
 use crate::Global;
-use lib::{read_writer::ReadWriter, GResult};
-use std::{error::Error, sync::Arc};
+use lib::GResult;
+use std::sync::Arc;
 
-pub async fn handler(
-    user_id: &UserID,
-    account: &RwLock<Account>,
-    Req { crud, value, .. }: &Req,
-    rw: &mut ReadWriter,
-    global: &Arc<Global>,
-) -> GResult<String> {
-    todo!()
+pub async fn handler(Req { crud, .. }: &Req, global: &Arc<Global>) -> GResult<String> {
+    match crud {
+        Crud::Read => {
+            let matcher = global.matcher.read().await;
+            Ok(serde_json::to_string(&matcher.get_stats())?)
+        }
+        _ => Err(Box::from(format!("Can not {crud:?} market."))),
+    }
 }
-

@@ -6,6 +6,7 @@ use std::{
     collections::{BTreeMap, HashMap, VecDeque},
 };
 
+use lib::interfaces::{AllOrders, BuySell, QuantityPrice};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -31,7 +32,7 @@ pub struct Trade {
     pub seller_id: UserID,
 }
 
-struct Matcher {
+pub struct Matcher {
     this_id: NodeID,
     buys: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
     sells: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
@@ -44,6 +45,28 @@ impl Matcher {
             buys: HashMap::new(),
             sells: HashMap::new(),
         }
+    }
+
+    pub fn get_stats(&self) -> AllOrders {
+        // TODO: Add comment to make this more readable
+        let mut all_orders = HashMap::new();
+        let self_buys_sells = [&self.buys, &self.sells];
+        for (is_buy_sell, orders) in self_buys_sells.into_iter().enumerate() {
+            for (ticker, price_quantity) in orders {
+                let stats = all_orders.entry(ticker.to_owned()).or_insert(BuySell {
+                    buy: Vec::new(),
+                    sell: Vec::new(),
+                });
+                let stats_buys_sells = [&mut stats.buy, &mut stats.sell];
+                for (&price, quantity) in price_quantity
+                    .iter()
+                    .map(|(price, quantity)| (price, quantity.iter().map(|(_, q)| q).sum()))
+                {
+                    stats_buys_sells[is_buy_sell].push(QuantityPrice { price, quantity })
+                }
+            }
+        }
+        AllOrders(all_orders)
     }
 
     pub fn deduct_order(
