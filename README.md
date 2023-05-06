@@ -17,7 +17,7 @@
 - Launch at least 2 market database servers:
   `cargo run -p node -- -c <coordinator address & port> -p <port>`
 - Launch at least 2 clients:
-  <!-- TODO: -->
+  `cargo run -p client -- -c <coordinator address & port>`
 
 ### Running example
 
@@ -27,10 +27,8 @@
   `cargo run -p node -- -c 127.0.0.1:8000 -p 8001`
 - Terminal 3:
   `cargo run -p node -- -c 127.0.0.1:8000 -p 8002`
-- Terminal 4:
+- Terminals 4 and 5:
   `cargo run -p client -- -c 127.0.0.1:8000`
-- Terminal 5:
-  <!-- TODO: -->
 
 ## Approaches
 
