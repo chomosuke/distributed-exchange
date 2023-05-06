@@ -1,10 +1,10 @@
+use crate::{Global, NodeRecord};
+use lib::interfaces::UserID;
 use lib::{read_writer::ReadWriter, GResult};
 use serde::Deserialize;
 use serde_json::json;
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use tokio::sync::{mpsc, oneshot::Sender};
-use super::client::UserID;
-use crate::{Global, NodeRecord};
 
 #[derive(Deserialize)]
 pub struct FirstLine {

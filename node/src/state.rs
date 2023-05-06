@@ -6,7 +6,10 @@
 
 use std::{collections::HashMap, fs::read_to_string};
 
-use lib::GResult;
+use lib::{
+    interfaces::{CentCount, NodeID, Quantity, Ticker},
+    GResult,
+};
 use serde::{Deserialize, Serialize};
 use tokio::{fs, sync::RwLock};
 
@@ -56,8 +59,10 @@ impl State {
 
     pub async fn create_account(&mut self) -> GResult<usize> {
         let id = self.next_account_id;
-        self.accounts
-            .insert(id, RwLock::new(Account::new(format!("{}/{id}", self.per_dir)).await?));
+        self.accounts.insert(
+            id,
+            RwLock::new(Account::new(format!("{}/{id}", self.per_dir)).await?),
+        );
         self.next_account_id += 1;
         Ok(id)
     }
@@ -70,11 +75,6 @@ impl State {
         &mut self.accounts
     }
 }
-
-pub type NodeID = usize;
-pub type CentCount = u64;
-pub type Ticker = String;
-pub type Quantity = u64;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum OrderType {
@@ -126,18 +126,40 @@ impl Account {
 
     pub async fn delete(&mut self) -> Result<(), String> {
         if self.balance != 0 {
-            return Err(format!("Can't delete account, balance not zero: {}", self.balance as f64 / 100.0));
+            return Err(format!(
+                "Can't delete account, balance not zero: {}",
+                self.balance as f64 / 100.0
+            ));
         }
         if self.portfolio.iter().any(|(_, q)| q != &0) {
-            return Err(format!("Can't delete account, portfolio not empty: {:?}", self.portfolio));
+            return Err(format!(
+                "Can't delete account, portfolio not empty: {:?}",
+                self.portfolio
+            ));
         }
-        if self.buys.iter().any(|(_, o)| o.iter().any(|(_, q)| q != &0)) {
-            return Err(format!("Can't delete account, still have buy orders: {:?}", self.buys));
+        if self
+            .buys
+            .iter()
+            .any(|(_, o)| o.iter().any(|(_, q)| q != &0))
+        {
+            return Err(format!(
+                "Can't delete account, still have buy orders: {:?}",
+                self.buys
+            ));
         }
-        if self.sells.iter().any(|(_, o)| o.iter().any(|(_, q)| q != &0)) {
-            return Err(format!("Can't delete account, still have sell orders: {:?}", self.sells));
+        if self
+            .sells
+            .iter()
+            .any(|(_, o)| o.iter().any(|(_, q)| q != &0))
+        {
+            return Err(format!(
+                "Can't delete account, still have sell orders: {:?}",
+                self.sells
+            ));
         }
-        fs::remove_file(&self.path).await.map_err(|e| format!("Internal server error {e}"))
+        fs::remove_file(&self.path)
+            .await
+            .map_err(|e| format!("Internal server error {e}"))
     }
 
     pub fn get_balance(&self) -> u64 {

@@ -3,11 +3,10 @@ mod matcher;
 mod state;
 
 use crate::{handlers::handler, state::State};
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, interfaces::NodeID};
 use matcher::Matcher;
 use serde::Deserialize;
 use serde_json::json;
-use state::NodeID;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use structopt::StructOpt;
 use tokio::{

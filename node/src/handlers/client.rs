@@ -1,7 +1,6 @@
 use super::get_value_type;
-use crate::{Global, NodeID};
-use lib::{read_writer::ReadWriter, GResult};
-use serde::{Deserialize, Serialize};
+use crate::Global;
+use lib::{interfaces::UserID, read_writer::ReadWriter, GResult};
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
 
@@ -10,12 +9,6 @@ mod balance;
 mod market;
 // mod order;
 mod stock;
-
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
-pub struct UserID {
-    pub id: usize,
-    pub node_id: NodeID,
-}
 
 pub struct FirstLine(UserID);
 

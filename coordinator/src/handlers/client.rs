@@ -1,16 +1,9 @@
-use lib::{read_writer::ReadWriter, GResult};
-use serde::{Deserialize, Serialize};
+use lib::{read_writer::ReadWriter, GResult, interfaces::UserID};
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::oneshot;
 
 use super::node::Message;
 use crate::Global;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserID {
-    id: u64,
-    node_id: usize,
-}
 
 pub enum FirstLine {
     CAccount,

@@ -1,7 +1,7 @@
 mod scanner;
 
-use std::net::SocketAddr;
 use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use structopt::StructOpt;
 
 #[allow(unused_imports)]
@@ -13,9 +13,11 @@ struct Args {
     coordinator: SocketAddr,
 }
 
+use lib::interfaces::{CentCount, Quantity, Ticker, UserID};
+
 enum ApplicationStatus {
-    CONTINUE,
-    COMPLETE
+    Continue,
+    Complete,
 }
 
 const HEADER_TEXT: &str = r"
@@ -62,39 +64,37 @@ fn main() {
 
     loop {
         println!("Choose an action:");
-
-        if account_id.is_empty() { // not logged in
+        if account_id.is_empty() {
+            // not logged in
             println!("  c                Create a new account");
             println!("  l <account_id>   Login with your Account ID");
             println!("  q                Exit the application");
 
-            match get_command_logged_out(scanner) {
-                ApplicationStatus::COMPLETE => {break}
-                ApplicationStatus::CONTINUE => {}
+            match handle_command_logged_out(&mut scanner, &mut account_id) {
+                ApplicationStatus::Complete => break,
+                ApplicationStatus::Continue => {}
             }
-
-        } else { // logged in
+        } else {
+            // logged in
             println!("Choose an action:");
             println!("  b <ticker> <price> <quantity>  Submit a buy order");
             println!("  s <ticker> <price> <quantity>  Submit a sell order");
             println!("  c <ticker> <price> <quantity>  Cancel an order");
-            println!("  o                              See your submitted orders");
-            println!("  a                              See current account details");
-            println!("  p                              See current stock prices");
-            println!("  q                              Exit the application");
-            // Delete account
+            println!("  o                              View your submitted orders");
+            println!("  a                              View current account details");
+            println!("  p                              View current stock prices");
+            println!("  d <amount>                     Deposit cash");
+            println!("  w <amount>                     Withdraw cash");
+            println!("  !                              Delete your account permanently");
+            println!("  q                              Quit the application");
+
             // Going IPO
-            // Cancel order buy or sell
-            // deposite and withdraw money
 
-            match get_command_logged_in(scanner, account_id) {
-                ApplicationStatus::COMPLETE => {break}
-                ApplicationStatus::CONTINUE => {}
+            match handle_command_logged_in(&mut scanner, &account_id) {
+                ApplicationStatus::Complete => break,
+                ApplicationStatus::Continue => {}
             }
-
         }
-
-
     }
 }
 
@@ -102,15 +102,15 @@ fn create_account() {
     todo!();
 }
 
-fn login(account_id: String) {
+fn login(account_id: &mut String, new_account_id: String) {
     todo!()
 }
 
-fn submit_buy(account_id: String, ticker: String, price: String, quantity: String) {
+fn submit_buy(account_id: &String, ticker: &Ticker, price: &CentCount, quantity: &Quantity) {
     todo!()
 }
 
-fn submit_sell(account_id: String, ticker: String, price: String, quantity: String) {
+fn submit_sell(account_id: &String, ticker: &Ticker, price: &CentCount, quantity: &Quantity) {
     todo!()
 }
 
@@ -126,99 +126,102 @@ fn print_orders() {
     todo!()
 }
 
-fn print_remaining_input(mut scanner: Scanner) {
+fn print_remaining_input(scanner: &mut Scanner) {
     while !scanner.is_empty() {
         eprint!("{} ", scanner.next::<String>());
     }
     eprintln!();
 }
 
-fn get_command_logged_out(mut scanner: Scanner) -> ApplicationStatus {
+fn handle_command_logged_out(scanner: &mut Scanner, account_id: &mut String) -> ApplicationStatus {
     match scanner.next::<String>().as_str() {
-        "c" => { //Create a new account
+        "c" => {
+            //Create a new account
             if !scanner.is_empty() {
                 eprintln!("Unexpected input after c: ");
                 print_remaining_input(scanner);
-            }
-            else {
+            } else {
                 create_account();
             }
         }
-        "l" => { //Login with your Account ID
+        "l" => {
+            //Login with your Account ID
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <account_id>");
             } else {
-                let account_id = scanner.next::<String>().clone();
+                let entered_account_id = scanner.next::<String>();
 
                 if !scanner.is_empty() {
                     eprint!("Unexpected input after account_id: ");
                     print_remaining_input(scanner);
                 } else {
-                    login(account_id.to_string());
+                    login(account_id, entered_account_id);
                 }
             }
         }
-        "q" => { // Exit the application
+        "q" => {
+            // Exit the application
             scanner.clear();
             println!("Shutting down.");
-            return ApplicationStatus::COMPLETE;
+            return ApplicationStatus::Complete;
         }
         _other => {
             eprintln!("Unexpected input: {}", _other);
         }
     }
     scanner.clear();
-    ApplicationStatus::CONTINUE
+    ApplicationStatus::Continue
 }
 
-fn get_command_logged_in(mut scanner: Scanner, account_id: String) -> ApplicationStatus {
+fn handle_command_logged_in(scanner: &mut Scanner, account_id: &String) -> ApplicationStatus {
     match scanner.next::<String>().as_str() {
-        "b" => { //Submit a buy order
+        "b" => {
+            //Submit a buy order
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-                return ApplicationStatus::CONTINUE;
+                return ApplicationStatus::Continue;
             }
-            let ticker = scanner.next::<String>();
+            let ticker = scanner.next::<Ticker>();
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-                return ApplicationStatus::CONTINUE;
+                return ApplicationStatus::Continue;
             }
-            let price = scanner.next::<String>();
+            let price = scanner.next::<CentCount>();
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-                return ApplicationStatus::CONTINUE;
+                return ApplicationStatus::Continue;
             }
-            let quantity = scanner.next::<String>();
+            let quantity = scanner.next::<Quantity>();
             if !scanner.is_empty() {
                 eprintln!("Unexpected input: ");
                 print_remaining_input(scanner);
-                return ApplicationStatus::CONTINUE;
+                return ApplicationStatus::Continue;
             }
-            submit_buy(account_id, ticker, price, quantity);
+            submit_buy(account_id, &ticker, &price, &quantity);
         }
-        "s" => { //Submit a sell order
+        "s" => {
+            //Submit a sell order
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
             }
         }
-        "c" => { //Cancel an order
+        "c" => {
+            //Cancel an order
             if scanner.is_empty() {
                 eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
             }
         }
         "o" => { //See your submitted orders
-
         }
         "a" => { //See current account details
-
         }
         "p" => { //See current stock prices
-
         }
-        "q" => { // Exit the application
+        "q" => {
+            // Exit the application
             scanner.clear();
             println!("Shutting down.");
-            return ApplicationStatus::COMPLETE;
+            return ApplicationStatus::Complete;
         }
         _other => {
             eprintln!("Unexpected input: {}", _other);
@@ -226,5 +229,5 @@ fn get_command_logged_in(mut scanner: Scanner, account_id: String) -> Applicatio
         }
     }
     scanner.clear();
-    ApplicationStatus::CONTINUE
+    ApplicationStatus::Continue
 }

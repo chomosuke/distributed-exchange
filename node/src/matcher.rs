@@ -6,13 +6,12 @@ use std::{
     collections::{BTreeMap, HashMap, VecDeque},
 };
 
-use lib::interfaces::{AllOrders, BuySell, QuantityPrice};
+use lib::interfaces::{
+    AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    handlers::client::UserID,
-    state::{CentCount, NodeID, OrderType, Quantity, Ticker},
-};
+use crate::state::OrderType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Order {
