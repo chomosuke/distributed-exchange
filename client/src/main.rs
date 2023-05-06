@@ -1,6 +1,5 @@
 mod scanner;
 
-use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use structopt::StructOpt;
 

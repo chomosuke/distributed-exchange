@@ -1,6 +1,6 @@
-use super::{client::UserID, get_value_type, node};
+use super::{get_value_type, node};
 use crate::{Global, Node, NodeID};
-use lib::{read_writer::ReadWriter, GResult};
+use lib::{read_writer::ReadWriter, GResult, interfaces::UserID};
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpStream;
