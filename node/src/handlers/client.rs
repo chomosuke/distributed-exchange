@@ -99,7 +99,7 @@ pub async fn handler(
     drop(state);
     loop {
         let line = rw.read_line().await?;
-        if line == "bye" {
+        if line == "\"bye\"" {
             return Ok(format!("Connection with user {user_id:?} terminated."));
         }
         let req = Req::from_str(&line)?;
