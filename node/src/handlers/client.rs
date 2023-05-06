@@ -7,7 +7,7 @@ use std::{str::FromStr, sync::Arc};
 mod account;
 mod balance;
 mod market;
-// mod order;
+mod order;
 mod stock;
 
 pub struct FirstLine(UserID);
@@ -109,9 +109,8 @@ pub async fn handler(
             Target::Account => account::handler(&user_id, req, &global).await?,
             Target::Balance => balance::handler(&user_id, req, &global).await?,
             Target::Market => market::handler(req, &global).await?,
-            // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            Target::Order => order::handler(&user_id, req, &global).await?,
             Target::Stock => stock::handler(&user_id, req, &global).await?,
-            _ => return Err(Box::from("")),
         };
         rw.write_line(&res).await?;
         println!("repsonded request {line} from client {user_id:?} with {res:?}");

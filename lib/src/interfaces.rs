@@ -26,3 +26,19 @@ pub struct UserID {
     pub id: usize,
     pub node_id: NodeID,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum OrderType {
+    #[serde(rename = "buy")]
+    Buy,
+    #[serde(rename = "sell")]
+    Sell,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct OrderReq {
+    pub order_type: OrderType,
+    pub ticker: Ticker,
+    pub price: CentCount,
+    pub quantity: Quantity,
+}

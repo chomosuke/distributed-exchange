@@ -7,11 +7,10 @@ use std::{
 };
 
 use lib::interfaces::{
-    AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID,
+    AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID, OrderType,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::state::OrderType;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Order {
@@ -22,7 +21,7 @@ pub struct Order {
     pub price: CentCount,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Trade {
     pub quantity: Quantity,
     pub price: CentCount,

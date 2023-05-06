@@ -4,13 +4,13 @@
 //! file name = 'state'
 //! file content = serde_json::to_string(StateFile)
 
-use std::{collections::HashMap, fs::read_to_string};
-
+use crate::{handlers::node::TradeID, matcher::Trade};
 use lib::{
-    interfaces::{CentCount, NodeID, Quantity, Ticker},
+    interfaces::{AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID, OrderType},
     GResult,
 };
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs::read_to_string};
 use tokio::{fs, sync::RwLock};
 
 pub struct State {
@@ -18,12 +18,14 @@ pub struct State {
     accounts: HashMap<usize, RwLock<Account>>,
     next_account_id: usize,
     per_dir: String,
+    next_trade_id: usize,
 }
 
 #[derive(Serialize, Deserialize)]
 struct StateFile {
     id: NodeID,
     next_account_id: usize,
+    next_trade_id: usize,
 }
 
 impl State {
@@ -33,6 +35,7 @@ impl State {
             accounts: HashMap::new(),
             per_dir,
             next_account_id: 0,
+            next_trade_id: 0,
         }
     }
 
@@ -49,8 +52,22 @@ impl State {
             id: state_file.id,
             accounts,
             next_account_id: state_file.next_account_id,
+            next_trade_id: state_file.next_trade_id,
             per_dir,
         })
+    }
+
+    async fn update_file(&mut self) -> GResult<()> {
+        fs::write(
+            format!("{}/state", self.per_dir),
+            &serde_json::to_string(&StateFile {
+                id: self.id,
+                next_account_id: self.next_account_id,
+                next_trade_id: self.next_trade_id,
+            })?,
+        )
+        .await?;
+        Ok(())
     }
 
     pub fn get_id(&self) -> NodeID {
@@ -61,9 +78,19 @@ impl State {
         let id = self.next_account_id;
         self.accounts.insert(
             id,
-            RwLock::new(Account::new(format!("{}/{id}", self.per_dir)).await?),
+            RwLock::new(
+                Account::new(
+                    format!("{}/{id}", self.per_dir),
+                    UserID {
+                        id,
+                        node_id: self.id,
+                    },
+                )
+                .await?,
+            ),
         );
         self.next_account_id += 1;
+        self.update_file().await?;
         Ok(id)
     }
 
@@ -71,18 +98,65 @@ impl State {
         &self.accounts
     }
 
-    pub fn get_accounts_mut(&mut self) -> &mut HashMap<usize, RwLock<Account>> {
-        &mut self.accounts
+    pub fn remove_account(&mut self, id: usize) -> Option<RwLock<Account>> {
+        self.accounts.remove(&id)
+    }
+
+    pub async fn process_matches(&mut self, matches: Vec<Trade>) -> GResult<Vec<(NodeID, Trade)>> {
+        let mut offers = Vec::new();
+        for trade in matches {
+            if trade.buyer_id.node_id == self.id && trade.seller_id.node_id == self.id {
+                // Both locol, perform trade NOW
+                let Trade {
+                    quantity,
+                    price,
+                    ticker,
+                    buyer_id,
+                    seller_id,
+                } = trade;
+                let buyer = &mut self
+                    .accounts
+                    .get(&buyer_id.id)
+                    .expect("Matcher gave invalid UserID")
+                    .write()
+                    .await;
+                let seller = &mut self
+                    .accounts
+                    .get(&seller_id.id)
+                    .expect("Matcher gave invalid UserID")
+                    .write()
+                    .await;
+                let new_buyer_balance = buyer.get_balance() - quantity * price;
+                buyer.set_balance(new_buyer_balance).await?;
+                assert_eq!(
+                    quantity,
+                    seller.deduct_stock(ticker.clone(), quantity).await?
+                );
+                let new_seller_balance = seller.get_balance() + quantity * price;
+                seller.set_balance(new_seller_balance).await?;
+                buyer.add_stock(ticker.clone(), quantity).await?;
+            } else {
+                // One of them remote
+                let (mut local, remote) = if trade.buyer_id.node_id == self.id {
+                    (self.accounts[&trade.buyer_id.id].write().await, trade.seller_id.clone())
+                } else {
+                    assert_eq!(
+                        trade.seller_id.node_id, self.id,
+                        "Matcher error, both buyer and seller are not local"
+                    );
+                    (self.accounts[&trade.seller_id.id].write().await, trade.buyer_id.clone())
+                };
+                local.add_pending(self.next_trade_id, trade.clone());
+
+                // return the offer to be sent
+                offers.push((remote.node_id, trade))
+            }
+        }
+        self.update_file().await?;
+        Ok(offers)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub enum OrderType {
-    #[serde(rename = "buy")]
-    Buy,
-    #[serde(rename = "sell")]
-    Sell,
-}
 pub struct Order {
     pub order_type: OrderType,
     pub ticker: Ticker,
@@ -96,20 +170,24 @@ pub struct Account {
     #[serde(skip)]
     path: String,
 
+    id: UserID,
     balance: CentCount,
     portfolio: HashMap<Ticker, Quantity>,
     buys: HashMap<Ticker, HashMap<CentCount, Quantity>>,
     sells: HashMap<Ticker, HashMap<CentCount, Quantity>>,
+    pending: HashMap<TradeID, Trade>,
 }
 
 impl Account {
-    async fn new(path: String) -> GResult<Self> {
+    async fn new(path: String, id: UserID) -> GResult<Self> {
         let s = Self {
+            id,
             path,
             balance: 0,
             portfolio: HashMap::new(),
             buys: HashMap::new(),
             sells: HashMap::new(),
+            pending: HashMap::new(),
         };
         s.update_file().await?;
         Ok(s)
@@ -175,6 +253,25 @@ impl Account {
         &self.portfolio
     }
 
+    pub fn get_orders(&self) -> AllOrders {
+        // TODO: Add comment to make this more readable
+        let mut all_orders = HashMap::new();
+        let self_buys_sells = [&self.buys, &self.sells];
+        for (is_buy_sell, orders) in self_buys_sells.into_iter().enumerate() {
+            for (ticker, price_quantity) in orders {
+                let stats = all_orders.entry(ticker.to_owned()).or_insert(BuySell {
+                    buy: Vec::new(),
+                    sell: Vec::new(),
+                });
+                let stats_buys_sells = [&mut stats.buy, &mut stats.sell];
+                for (&price, &quantity) in price_quantity {
+                    stats_buys_sells[is_buy_sell].push(QuantityPrice { price, quantity })
+                }
+            }
+        }
+        AllOrders(all_orders)
+    }
+
     pub async fn add_stock(&mut self, t: Ticker, q: Quantity) -> GResult<()> {
         *self.portfolio.entry(t).or_default() += q;
         self.update_file().await
@@ -226,5 +323,77 @@ impl Account {
         *current -= deducted;
         self.update_file().await?;
         Ok(deducted)
+    }
+
+    /// this function assume the trade will succeed
+    pub async fn add_pending(&mut self, trade_id: TradeID, trade: Trade) -> GResult<()> {
+        assert!(
+            self.pending.get(&trade_id).is_none(),
+            "duplicate trade id??"
+        );
+        self.pending.insert(trade_id, trade.clone());
+        let Trade {
+            quantity,
+            price,
+            ticker,
+            buyer_id,
+            seller_id,
+        } = trade;
+        if buyer_id == self.id {
+            let to_deduct = quantity * price;
+            assert!(
+                to_deduct <= self.balance,
+                "Invalid trade, not enough balance"
+            );
+            self.balance -= to_deduct;
+        } else if seller_id == self.id {
+            let current_quantity = self.portfolio.entry(ticker).or_default();
+            assert!(
+                *current_quantity > quantity,
+                "Invalid trade, not enough stock"
+            );
+            *current_quantity -= quantity;
+        } else {
+            panic!("This trade doesn't belong to this user");
+        }
+        self.update_file().await
+    }
+
+    pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+        let Trade {
+            quantity,
+            price,
+            ticker,
+            buyer_id,
+            seller_id,
+        } = self.pending.remove(&trade_id).expect("Invalid trade_id");
+        if buyer_id == self.id {
+            let current_quantity = self.portfolio.entry(ticker).or_default();
+            *current_quantity += quantity;
+        } else if seller_id == self.id {
+            self.balance += quantity * price;
+        } else {
+            panic!("This trade doesn't belong to this user");
+        }
+        self.update_file().await
+    }
+
+    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+        let Trade {
+            quantity,
+            price,
+            ticker,
+            buyer_id,
+            seller_id,
+        } = self.pending.remove(&trade_id).expect("Invalid trade_id");
+        if buyer_id == self.id {
+            self.balance += quantity * price;
+        } else if seller_id == self.id {
+            let current_quantity = self.portfolio.entry(ticker).or_default();
+            *current_quantity += quantity;
+        } else {
+            panic!("This trade doesn't belong to this user");
+        }
+        self.update_file().await
     }
 }

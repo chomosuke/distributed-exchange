@@ -6,7 +6,7 @@ mod order;
 use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
 use lib::{read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 use tokio::{select, sync::mpsc};
 
 #[derive(Deserialize)]
@@ -28,10 +28,10 @@ struct State {
 
 #[derive(Debug)]
 pub enum Message {
-    Matched(Trade),
+    Offer(Trade),
 }
 
-type TradeID = usize;
+pub type TradeID = usize;
 
 #[derive(Serialize, Deserialize)]
 struct Offer {
@@ -76,11 +76,6 @@ pub async fn handler(
     others.insert(id, Node::Connected { sender });
 
     println!("Connected with Node {id} from addr {addr}");
-
-    let mut pending_offer = PendingOffer {
-        pending: HashMap::new(),
-        next_trade_id: 0,
-    };
 
     loop {
         select! {
