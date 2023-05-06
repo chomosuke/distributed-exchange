@@ -183,63 +183,59 @@ async fn handle_command_logged_out(scanner: &mut Scanner, ip_port: &SocketAddr) 
     ApplicationFlow::Continue
 }
 
+fn get_tpq_input(scanner: &mut Scanner) -> GResult<(Ticker, CentCount, Quantity)> {
+    if scanner.is_empty() {
+        return Err(Box::from(
+            "Invalid input: Expected <ticker> <price> <quantity>",
+        ));
+    }
+    let ticker = scanner.next::<Ticker>();
+    if scanner.is_empty() {
+        return Err(Box::from(
+            "Invalid input after ticker: Expected <price> <quantity>",
+        ));
+    }
+    let price = scanner.next::<CentCount>();
+    if scanner.is_empty() {
+        return Err(Box::from("Invalid input after price: Expected <quantity>"));
+    }
+    let quantity = scanner.next::<Quantity>();
+    if !scanner.is_empty() {
+        print_remaining_input(scanner);
+        scanner.clear();
+        return Err(Box::from("Unexpected input after quantity: "));
+    }
+    Ok((ticker, price, quantity))
+}
+
 async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) -> ApplicationFlow {
     match scanner.next::<String>().as_str() {
         "b" => {
             //Submit a buy order
-            if scanner.is_empty() {
-                eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-                return ApplicationFlow::Continue;
+            match get_tpq_input(scanner) {
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return ApplicationFlow::Continue;
+                }
+                Ok((ticker, price, quantity)) => {
+                    submit_buy(&ticker, &price, &quantity).await;
+                }
             }
-            let ticker = scanner.next::<Ticker>();
-            if scanner.is_empty() {
-                eprintln!("Invalid input after ticker: Expected <price> <quantity>");
-                return ApplicationFlow::Continue;
-            }
-            let price = scanner.next::<CentCount>();
-            if scanner.is_empty() {
-                eprintln!("Invalid input after price: Expected <quantity>");
-                return ApplicationFlow::Continue;
-            }
-            let quantity = scanner.next::<Quantity>();
-            if !scanner.is_empty() {
-                eprintln!("Unexpected input after quantity: ");
-                print_remaining_input(scanner);
-                scanner.clear();
-                return ApplicationFlow::Continue;
-            }
-            submit_buy(&ticker, &price, &quantity).await;
         }
         "s" => {
             //Submit a sell order
-            if scanner.is_empty() {
-                eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-                return ApplicationFlow::Continue;
+            match get_tpq_input(scanner) {
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return ApplicationFlow::Continue;
+                }
+                Ok((ticker, price, quantity)) => {
+                    submit_sell(&ticker, &price, &quantity).await;
+                }
             }
-            let ticker = scanner.next::<Ticker>();
-            if scanner.is_empty() {
-                eprintln!("Invalid input after ticker: Expected <price> <quantity>");
-                return ApplicationFlow::Continue;
-            }
-            let price = scanner.next::<CentCount>();
-            if scanner.is_empty() {
-                eprintln!("Invalid input after price: Expected <quantity>");
-                return ApplicationFlow::Continue;
-            }
-            let quantity = scanner.next::<Quantity>();
-            if !scanner.is_empty() {
-                eprintln!("Unexpected input after quantity: ");
-                print_remaining_input(scanner);
-                scanner.clear();
-                return ApplicationFlow::Continue;
-            }
-            submit_sell(&ticker, &price, &quantity).await;
         }
         "c" => {
             //Cancel an order
-            if scanner.is_empty() {
-                eprintln!("Invalid input: Expected <ticker> <price> <quantity>");
-            }
         }
         "o" => { //See your submitted orders
         }
@@ -250,7 +246,9 @@ async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) ->
         "q" => {
             // Exit the application
             scanner.clear();
-            rw.write_line(r#""bye""#).await.expect("Failed to send goodbye to node");
+            rw.write_line(r#""bye""#)
+                .await
+                .expect("Failed to send goodbye to node");
             println!("Shutting down.");
             return ApplicationFlow::Break;
         }
@@ -277,8 +275,7 @@ async fn login(ip_port: &SocketAddr, account_id: &str) -> GResult<SocketAddr> {
     // }
 
     // let (id, node) = (sp[0], sp[1]);
-    let user_id: UserID =
-        UserID::from_str(account_id).map_err(|_| "Invalid format for User ID")?;
+    let user_id: UserID = UserID::from_str(account_id).map_err(|_| "Invalid format for User ID")?;
 
     println!("user_id: {}", user_id);
 
