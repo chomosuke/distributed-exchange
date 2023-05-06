@@ -88,11 +88,15 @@ async fn main() {
     );
 
     // send coordinator
+    let state_to_send = state.as_ref().map(|s| json!({
+        "id": s.get_id(),
+        "account_num": s.get_accounts().len(),
+    }));
     coord_rw
         .write_line(
             &serde_json::to_string(&json!({
                 "addr": &addr,
-                "id": state.as_ref().map(|s| s.get_id())
+                "state": state_to_send,
             }))
             .unwrap(),
         )

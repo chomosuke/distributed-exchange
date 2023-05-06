@@ -1,9 +1,9 @@
-use lib::{read_writer::ReadWriter, GResult, interfaces::UserID, lock::DeadLockDetect};
+use lib::{interfaces::UserID, lock::DeadLockDetect, read_writer::ReadWriter, GResult};
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::oneshot;
 
 use super::node::Message;
-use crate::Global;
+use crate::State;
 
 pub enum FirstLine {
     CAccount,
@@ -27,11 +27,12 @@ impl FromStr for FirstLine {
 pub async fn handler(
     first_line: FirstLine,
     mut rw: ReadWriter,
-    global: Arc<Global>,
+    state: Arc<State>,
 ) -> GResult<String> {
+    let node_records = state.node_records.read().dl("cl32").await;
+    let node_records = node_records.get_records();
     match first_line {
         FirstLine::FindNode(user_id) => {
-            let node_records = global.node_records.read().dl("34").await;
             let addr = node_records[user_id.node_id].address;
 
             rw.write_line(&addr.to_string()).await?;
@@ -42,23 +43,29 @@ pub async fn handler(
             ))
         }
         FirstLine::CAccount => {
-            let account_nums = global.account_nums.read().dl("45").await;
-            let node_records = global.node_records.read().dl("46").await;
+            let mut account_nums = state.account_nums.write().dl("45").await;
 
             let mut min_acc = 0;
-            for i in 0..account_nums.len() {
-                if account_nums[i] < account_nums[min_acc] {
+            let a_nums = account_nums.get_nums();
+            for i in 0..a_nums.len() {
+                if a_nums[i] < a_nums[min_acc] {
                     min_acc = i;
                 }
             }
+
+            account_nums.set_num(min_acc, 1).await;
 
             let (sender, recver) = oneshot::channel();
 
             node_records[min_acc]
                 .sender
+                .as_ref()
+                .expect("TODO")
                 .send(Message::CAccount(sender))?;
 
-            let user_id = recver.await.map_err(|e| format!("user_id channel closed: {e}"))?;
+            let user_id = recver
+                .await
+                .map_err(|e| format!("user_id channel closed: {e}"))?;
 
             rw.write_line(&serde_json::to_string(&user_id)?).await?;
 

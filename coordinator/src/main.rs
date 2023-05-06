@@ -1,42 +1,20 @@
 #![allow(clippy::new_without_default)]
 mod handlers;
+mod state;
 
-use crate::handlers::handler;
+use crate::{handlers::handler, state::State};
 use lib::read_writer::ReadWriter;
-use serde::Serialize;
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 use structopt::StructOpt;
-use tokio::{
-    net::TcpListener,
-    sync::{mpsc::UnboundedSender, RwLock},
-};
+use tokio::net::TcpListener;
 
 #[derive(StructOpt)]
 struct Args {
     #[structopt(short, long)]
     port: u16,
-}
 
-#[derive(Serialize)]
-struct NodeRecord {
-    address: SocketAddr,
-
-    #[serde(skip)]
-    sender: UnboundedSender<handlers::node::Message>,
-}
-
-pub struct Global {
-    node_records: RwLock<Vec<NodeRecord>>,
-    account_nums: RwLock<Vec<u64>>,
-}
-
-impl Global {
-    pub fn new() -> Self {
-        Self {
-            node_records: RwLock::new(Vec::new()),
-            account_nums: RwLock::new(Vec::new()),
-        }
-    }
+    #[structopt(short = "d", long)]
+    persistent_dir: String,
 }
 
 #[tokio::main]
@@ -47,7 +25,7 @@ async fn main() {
     println!("Starting coordinator on {ip_port}");
     let listener: TcpListener = TcpListener::bind(ip_port).await.expect("Failed to bind");
 
-    let global: Arc<Global> = Arc::new(Global::new());
+    let global: Arc<State> = Arc::new(State::new_or_restore(args.persistent_dir).await);
 
     loop {
         let rw = match listener.accept().await {

@@ -1,4 +1,3 @@
-use crate::{Global, NodeRecord};
 use lib::interfaces::UserID;
 use lib::lock::DeadLockDetect;
 use lib::{read_writer::ReadWriter, GResult};
@@ -7,10 +6,12 @@ use serde_json::json;
 use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use tokio::sync::{mpsc, oneshot::Sender};
 
+use crate::state::{NodeRecord, State};
+
 #[derive(Deserialize)]
 pub struct FirstLine {
     addr: SocketAddr,
-    state: Option<State>,
+    state: Option<NodeState>,
 }
 
 impl FromStr for FirstLine {
@@ -22,7 +23,7 @@ impl FromStr for FirstLine {
 }
 
 #[derive(Deserialize)]
-struct State {
+struct NodeState {
     id: usize,
     account_num: u64,
 }
@@ -36,19 +37,19 @@ pub enum Message {
 pub async fn handler(
     first_line: FirstLine,
     mut rw: ReadWriter,
-    global: Arc<Global>,
+    state: Arc<State>,
 ) -> GResult<String> {
-    let mut node_records = global.node_records.write().dl("41").await;
-    let mut account_nums = global.account_nums.write().dl("42").await;
+    let mut node_records = state.node_records.write().dl("41").await;
+    let mut account_nums = state.account_nums.write().dl("42").await;
     let id = first_line
         .state
         .as_ref()
         .map(|s| s.id)
-        .unwrap_or(node_records.len());
+        .unwrap_or(node_records.get_records().len());
     let addr = first_line.addr;
     let rep = serde_json::to_string(&json!({
         "id": id,
-        "others": node_records
+        "others": node_records.get_records()
             .iter()
             .enumerate()
             .map(|(i, r)| json!({"id": i, "addr": r.address}))
@@ -59,15 +60,24 @@ pub async fn handler(
 
     let (sender, mut recver) = mpsc::unbounded_channel();
     if let Some(state) = first_line.state {
-        node_records[id].address = addr;
-        account_nums[id] = state.account_num;
-        node_records[id].sender = sender;
+        node_records
+            .set_record(
+                id,
+                NodeRecord {
+                    address: addr,
+                    sender: Some(sender),
+                },
+            )
+            .await;
+        account_nums.set_num(id, state.account_num).await;
     } else {
-        node_records.push(NodeRecord {
-            address: first_line.addr,
-            sender,
-        });
-        account_nums.push(0);
+        node_records
+            .add_record(NodeRecord {
+                address: first_line.addr,
+                sender: Some(sender),
+            })
+            .await;
+        account_nums.add_num(0).await;
     }
 
     let line = rw.read_line().await?;
@@ -76,9 +86,12 @@ pub async fn handler(
     }
 
     // inform all other nodes that this node has joined
-    for i in 0..(node_records.len() - 1) {
-        let node_record = &node_records[i];
-        node_record.sender.send(Message::Joined(id, addr))?;
+    let records = node_records.get_records();
+    for node in records.iter().take(records.len() - 1) {
+        node.sender
+            .as_ref()
+            .expect("TODO")
+            .send(Message::Joined(id, addr))?;
     }
 
     // release the write lock
