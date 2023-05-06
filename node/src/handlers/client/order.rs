@@ -12,7 +12,7 @@ pub async fn handler(
     Req { crud, value, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
-    let state = global.state.read().dl().await;
+    let state = global.state.read().dl("o15").await;
     let account = state
         .get_accounts()
         .get(&user_id.id)
@@ -27,14 +27,14 @@ pub async fn handler(
             } = value
                 .and_then(|v| serde_json::from_value(v).ok())
                 .ok_or("Bad value")?;
-            let state = global.state.read().dl().await;
+            let state = global.state.read().dl("o30").await;
             let account = state
                 .get_accounts()
                 .get(&user_id.id)
                 .ok_or("Invalid account")?;
             account
                 .write()
-                .dl()
+                .dl("o37")
                 .await
                 .add_order(OrderReq {
                     order_type,
@@ -63,15 +63,15 @@ pub async fn handler(
             Ok(r#""ok""#.to_owned())
         }
         Crud::Read => {
-            let account = account.read().dl().await;
+            let account = account.read().dl("o66").await;
             Ok(serde_json::to_string(&account.get_orders())?)
         }
         Crud::Delete => {
             let order: OrderReq = serde_json::from_value(value.ok_or("Bad value")?)?;
-            let mut account = account.write().dl().await;
+            let mut account = account.write().dl("o71").await;
             let quantity = account.deduct_order(order.clone()).await?;
             let OrderReq { order_type, ticker, price, .. } = order;
-            global.matcher.write().dl().await.deduct_order(Order {
+            global.matcher.write().dl("o74").await.deduct_order(Order {
                 order_type, ticker, user_id: user_id.clone(), price, quantity,
             }).expect("Matcher account out of sync!");
             Ok(quantity.to_string())

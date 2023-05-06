@@ -38,8 +38,8 @@ pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> GResult<String> {
-    let mut node_records = global.node_records.write().dl().await;
-    let mut account_nums = global.account_nums.write().dl().await;
+    let mut node_records = global.node_records.write().dl("41").await;
+    let mut account_nums = global.account_nums.write().dl("42").await;
     let id = first_line
         .state
         .as_ref()

@@ -8,15 +8,15 @@ pub async fn handler(
     Req { crud, value, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
-    let state = global.state.read().dl().await;
+    let state = global.state.read().dl("11").await;
     let account = state
         .get_accounts()
         .get(&user_id.id)
         .ok_or("Invalid account")?;
     match crud {
-        Crud::Read => Ok(account.read().dl().await.get_balance().to_string()),
+        Crud::Read => Ok(account.read().dl("17").await.get_balance().to_string()),
         Crud::Update => {
-            let mut account = account.write().dl().await;
+            let mut account = account.write().dl("19").await;
             let new_balance = value.as_ref().and_then(|v| v.as_u64()).ok_or("Bad value")?;
             account.set_balance(new_balance).await?;
             Ok("\"ok\"".to_string())

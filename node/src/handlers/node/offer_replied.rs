@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub async fn handler(req: Value, _: &mut ReadWriter, global: &Arc<Global>) -> GResult<()> {
     let OfferReply { id, accepted } = serde_json::from_value(req)?;
-    let mut state = global.state.write().dl().await;
+    let mut state = global.state.write().dl("ofrp9").await;
     if accepted {
         state.commit_pending(id).await
     } else {

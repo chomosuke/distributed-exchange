@@ -10,9 +10,9 @@ pub async fn handler(
 ) -> GResult<String> {
     match crud {
         Crud::Delete => {
-            let mut state = global.state.write().dl().await;
+            let mut state = global.state.write().dl("13").await;
             let account = state.remove_account(user_id.id).ok_or("Invalid account")?;
-            let delete_status = account.write().dl().await.delete().await;
+            let delete_status = account.write().dl("15").await.delete().await;
             match delete_status {
                 Ok(()) => {
                     Ok("\"ok\"".to_string())

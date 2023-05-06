@@ -31,7 +31,7 @@ pub async fn handler(
 ) -> GResult<String> {
     match first_line {
         FirstLine::FindNode(user_id) => {
-            let node_records = global.node_records.read().dl().await;
+            let node_records = global.node_records.read().dl("34").await;
             let addr = node_records[user_id.node_id].address;
 
             rw.write_line(&addr.to_string()).await?;
@@ -42,8 +42,8 @@ pub async fn handler(
             ))
         }
         FirstLine::CAccount => {
-            let account_nums = global.account_nums.read().dl().await;
-            let node_records = global.node_records.read().dl().await;
+            let account_nums = global.account_nums.read().dl("45").await;
+            let node_records = global.node_records.read().dl("46").await;
 
             let mut min_acc = 0;
             for i in 0..account_nums.len() {

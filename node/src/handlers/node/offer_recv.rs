@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> GResult<()> {
     let Offer { id, trade } = serde_json::from_value(req)?;
-    let state = global.state.read().dl().await;
+    let state = global.state.read().dl("of9").await;
     let account = if trade.buyer_id.node_id == state.get_id() {
         state.get_accounts().get(&trade.buyer_id.id)
     } else {
@@ -20,7 +20,7 @@ pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> G
     .expect("Node recieved invalid UserID");
     let accepted = account
         .write()
-        .dl()
+        .dl("of23")
         .await
         .process_incoming_offer(trade)
         .await?;

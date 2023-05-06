@@ -92,7 +92,7 @@ pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> GResult<String> {
-    let state = global.state.read().dl().await;
+    let state = global.state.read().dl("c95").await;
     if user_id.id >= state.get_accounts().len() || user_id.node_id != state.get_id() {
         return Err(Box::from(format!("Bad user_id: {user_id:?}")));
     }

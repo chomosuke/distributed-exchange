@@ -9,12 +9,12 @@ pub enum OrderOrigin {
 }
 
 pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Global>) -> GResult<()> {
-    let mut matcher = global.matcher.write().dl().await;
+    let mut matcher = global.matcher.write().dl("pr12").await;
     let (remaining_order, matches) = matcher.add_order(order);
 
     if remaining_order.quantity > 0 && origin == OrderOrigin::Outgoing {
         // Send the order
-        for (_, node) in global.others.read().dl().await.iter() {
+        for (_, node) in global.others.read().dl("pr17").await.iter() {
             match node {
                 crate::Node::DisConnected(_) => todo!(),
                 crate::Node::Connected { sender } => {
@@ -28,7 +28,7 @@ pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Globa
     let offers = global
         .state
         .write()
-        .dl()
+        .dl("pr31")
         .await
         .process_matches(matches)
         .await?;
@@ -38,7 +38,7 @@ pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Globa
         match global
             .others
             .read()
-            .dl()
+            .dl("pr41")
             .await
             .get(&node_id)
             .expect("Bad node_id for trade offer")

@@ -15,18 +15,18 @@ pub async fn handler(
     Req { crud, value, .. }: Req,
     global: &Arc<Global>,
 ) -> GResult<String> {
-    let state = global.state.read().dl().await;
+    let state = global.state.read().dl("s18").await;
     let account = state
         .get_accounts()
         .get(&user_id.id)
         .ok_or("Invalid account")?;
     match crud {
         Crud::Read => {
-            let account = account.read().dl().await;
+            let account = account.read().dl("s25").await;
             Ok(serde_json::to_string(account.get_portfolio())?)
         }
         Crud::Create => {
-            let account = &mut account.write().dl().await;
+            let account = &mut account.write().dl("s29").await;
             let req: CStockV = serde_json::from_value(value.ok_or("Bad value".to_string())?)?;
             account.add_stock(req.ticker_id, req.quantity).await?;
             Ok("\"ok\"".to_string())

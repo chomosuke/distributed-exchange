@@ -131,14 +131,14 @@ impl State {
                     .get(&buyer_id.id)
                     .expect("Matcher gave invalid UserID")
                     .write()
-                    .dl()
+                    .dl("st134")
                     .await;
                 let seller = &mut self
                     .accounts
                     .get(&seller_id.id)
                     .expect("Matcher gave invalid UserID")
                     .write()
-                    .dl()
+                    .dl("st141")
                     .await;
                 let new_buyer_balance = buyer.get_balance() - quantity * price;
                 buyer.set_balance(new_buyer_balance).await?;
@@ -153,7 +153,7 @@ impl State {
                 // One of them remote
                 let (mut local, remote) = if trade.buyer_id.node_id == self.id {
                     (
-                        self.accounts[&trade.buyer_id.id].write().dl().await,
+                        self.accounts[&trade.buyer_id.id].write().dl("st156").await,
                         trade.seller_id.clone(),
                     )
                 } else {
@@ -162,7 +162,7 @@ impl State {
                         "Matcher error, both buyer and seller are not local"
                     );
                     (
-                        self.accounts[&trade.seller_id.id].write().dl().await,
+                        self.accounts[&trade.seller_id.id].write().dl("st165").await,
                         trade.buyer_id.clone(),
                     )
                 };
@@ -190,14 +190,14 @@ impl State {
     pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
         let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl().await.commit_pending(trade_id).await?;
+        account.write().dl("st193").await.commit_pending(trade_id).await?;
         self.update_file().await
     }
 
     pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
         let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl().await.abort_pending(trade_id).await?;
+        account.write().dl("st200").await.abort_pending(trade_id).await?;
         self.update_file().await
     }
 }
