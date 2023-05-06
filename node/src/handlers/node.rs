@@ -1,5 +1,5 @@
 mod offer_recv;
-mod offer_reply;
+mod offer_replied;
 mod offer_send;
 mod order;
 
@@ -18,12 +18,6 @@ impl FromStr for FirstLine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
     }
-}
-
-#[derive(Deserialize)]
-struct State {
-    id: NodeID,
-    account_num: u64,
 }
 
 #[derive(Debug)]
@@ -86,13 +80,13 @@ pub async fn handler(
                 let value = value.ok_or("No value for request")?;
                 match req_type.as_str() {
                     // "order" => order::handler(&value, &mut rw, &global).await?,
-                    // "offer" => offer_recv::handler(&value, &mut rw, &global).await?,
+                    "offer" => offer_recv::handler(value, &global).await?,
                     // "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
                 }
             },
         };
-        rw.write_line(&res);
+        rw.write_line(&res).await?;
         println!("Sent {res} to node {id}");
     }
 }

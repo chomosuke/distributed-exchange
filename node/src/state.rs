@@ -4,7 +4,10 @@
 //! file name = 'state'
 //! file content = serde_json::to_string(StateFile)
 
-use crate::{handlers::node::{TradeID, Offer}, matcher::Trade};
+use crate::{
+    handlers::node::{Offer, TradeID},
+    matcher::Trade,
+};
 use lib::{
     interfaces::{
         AllOrders, BuySell, CentCount, NodeID, OrderReq, OrderType, Quantity, QuantityPrice,
@@ -106,10 +109,7 @@ impl State {
         self.accounts.remove(&id)
     }
 
-    pub async fn process_matches(
-        &mut self,
-        matches: Vec<Trade>,
-    ) -> GResult<Vec<(NodeID, Offer)>> {
+    pub async fn process_matches(&mut self, matches: Vec<Trade>) -> GResult<Vec<(NodeID, Offer)>> {
         let mut offers = Vec::new();
         for trade in matches {
             if trade.buyer_id.node_id == self.id && trade.seller_id.node_id == self.id {
@@ -162,11 +162,17 @@ impl State {
                     )
                 };
                 let trade_id = self.next_trade_id;
-                local.add_pending(trade_id, trade.clone());
+                local.add_pending(trade_id, trade.clone()).await?;
                 self.next_trade_id += 1;
 
                 // return the offer to be sent
-                offers.push((remote.node_id, Offer { id: trade_id, trade }))
+                offers.push((
+                    remote.node_id,
+                    Offer {
+                        id: trade_id,
+                        trade,
+                    },
+                ))
             }
         }
         self.update_file().await?;
@@ -359,7 +365,7 @@ impl Account {
         } else if seller_id == self.id {
             let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
             assert!(
-                *current_quantity > quantity,
+                quantity <= *current_quantity,
                 "Invalid trade, not enough stock"
             );
             *current_quantity -= quantity;
@@ -385,6 +391,52 @@ impl Account {
         *current_order_quantity -= quantity;
 
         self.update_file().await
+    }
+
+    pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<bool> {
+        let Trade {
+            quantity,
+            price,
+            ticker,
+            buyer_id,
+            seller_id,
+        } = trade;
+
+        // check if enough orders left
+        let current_orders = if buyer_id == self.id {
+            &mut self.buys
+        } else {
+            &mut self.sells
+        };
+        let current_order_quantity = current_orders
+            .entry(ticker.clone())
+            .or_default()
+            .entry(price)
+            .or_default();
+        if quantity <= *current_order_quantity {
+            return Ok(false);
+        }
+
+        if buyer_id == self.id {
+            let to_deduct = quantity * price;
+            if self.balance > to_deduct {
+                return Ok(false);
+            }
+            // commit
+            self.balance -= to_deduct;
+        } else if seller_id == self.id {
+            let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
+            if *current_quantity < quantity {
+                return Ok(false);
+            }
+            // commit
+            *current_quantity -= quantity;
+        } else {
+            panic!("This trade doesn't belong to this user");
+        }
+        *current_order_quantity -= quantity;
+        self.update_file().await?;
+        Ok(true)
     }
 
     pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
