@@ -13,7 +13,13 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String>
     if let Ok(first_line) = client::FirstLine::from_str(&first_line) {
         client::handler(first_line, rw, global).await
     } else if let Ok(first_line) = node::FirstLine::from_str(&first_line) {
-        node::handler(first_line, rw, global).await
+        tokio::spawn(async move {
+            match node::handler(first_line, rw, global).await {
+                Ok(msg) => println!("Connection terminated with node: {msg}"),
+                Err(e) => eprintln!("Error: {e}"),
+            }
+        });
+        Ok("Started communicating with node".to_owned())
     } else {
         Err(format!("{first_line} is not a valid request").into())
     }

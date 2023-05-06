@@ -66,6 +66,9 @@ pub async fn handler(
 
     others.insert(id, Node::Connected { sender });
 
+    // release the write lock
+    drop(others);
+
     println!("Connected with Node {id} from addr {addr}");
 
     loop {
