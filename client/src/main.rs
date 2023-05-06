@@ -82,6 +82,10 @@ fn main() {
             println!("  a                              See current account details");
             println!("  p                              See current stock prices");
             println!("  q                              Exit the application");
+            // Delete account
+            // Going IPO
+            // Cancel order buy or sell
+            // deposite and withdraw money
 
             match get_command_logged_in(scanner, account_id) {
                 ApplicationStatus::COMPLETE => {break}
