@@ -57,11 +57,12 @@ M1 sends a TRADE_CONFIRMED to all M. => M messages.
 
 ## Fault tolerance
 
-When a node crashes, it'll be restarted.
-We store everything important: money, stock, order from their own account.
-When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.
+When a node crashes, it'll be restarted.\
+We store everything important: money, stock, order, pending transaction from their own account.\
+When a node restart, or is first started, it'll query every other node to build the local database, and also ask the other node to add it to the update list of database update.\
+TODO: update the protocol for crash failure
 
-If a Node already sent out a trade offer, it can't commit or abort without a trade reply.
+If a Node already sent out a trade offer, it can't commit or abort without a trade reply.\
 If a Node receives a trade offer, it can commit or abort immediately before sending the trade reply.
 When a node crash, all the transactions that involve that node can't be committed or aborted. But all the account that node owns can't do anything as well, so it's not that much worse.
 
@@ -103,9 +104,11 @@ Message format one line per json message:
 
 - Establish connection
 
-  - Send node_id (json number)
+- Send node_id (json number)
 
-  - UNIMPLEMENTED send all sell and buy order of own account to sync matcher
+- If recovered: // UNIMPLEMENTED
+  - Both side (recovered side first) send list of all user buy orders and sell orders
+  - Both side poll answer for pending request
 
 ```json
 {
