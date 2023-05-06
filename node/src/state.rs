@@ -4,42 +4,48 @@
 //! file name = 'state'
 //! file content = serde_json::to_string(StateFile)
 
-use std::{collections::HashMap, error::Error, fs::read_to_string};
+use std::{collections::HashMap, fs::read_to_string};
 
+use lib::GResult;
 use serde::{Deserialize, Serialize};
-use tokio::fs;
+use tokio::{fs, sync::RwLock};
 
 pub struct State {
     id: NodeID,
-    accounts: Vec<Account>,
+    accounts: HashMap<usize, RwLock<Account>>,
+    next_account_id: usize,
     per_dir: String,
 }
 
 #[derive(Serialize, Deserialize)]
 struct StateFile {
     id: NodeID,
-    account_nums: usize,
+    next_account_id: usize,
 }
 
 impl State {
     pub fn new(id: NodeID, per_dir: String) -> Self {
         Self {
             id,
-            accounts: Vec::new(),
+            accounts: HashMap::new(),
             per_dir,
+            next_account_id: 0,
         }
     }
 
     pub async fn restore(per_dir: String) -> Option<Self> {
         let state_file: StateFile =
             serde_json::from_str(&read_to_string(format!("{per_dir}/state")).ok()?).ok()?;
-        let mut accounts = Vec::new();
-        for i in 0..state_file.account_nums {
-            accounts.push(Account::restore(format!("{per_dir}/{i}")).await?);
+        let mut accounts = HashMap::new();
+        for i in 0..state_file.next_account_id {
+            if let Some(account) = Account::restore(format!("{per_dir}/{i}")).await {
+                accounts.insert(i, RwLock::new(account));
+            }
         }
         Some(Self {
             id: state_file.id,
             accounts,
+            next_account_id: state_file.next_account_id,
             per_dir,
         })
     }
@@ -48,15 +54,20 @@ impl State {
         self.id
     }
 
-    pub async fn create_account(&mut self) -> Result<usize, Box<dyn Error>> {
-        let id = self.accounts.len();
+    pub async fn create_account(&mut self) -> GResult<usize> {
+        let id = self.next_account_id;
         self.accounts
-            .push(Account::new(format!("{}/{id}", self.per_dir)).await?);
+            .insert(id, RwLock::new(Account::new(format!("{}/{id}", self.per_dir)).await?));
+        self.next_account_id += 1;
         Ok(id)
     }
 
-    pub fn get_account_mut(&mut self, id: usize) -> &mut Account {
-        &mut self.accounts[id]
+    pub fn get_accounts(&self) -> &HashMap<usize, RwLock<Account>> {
+        &self.accounts
+    }
+
+    pub fn get_accounts_mut(&mut self) -> &mut HashMap<usize, RwLock<Account>> {
+        &mut self.accounts
     }
 }
 
@@ -92,7 +103,7 @@ pub struct Account {
 }
 
 impl Account {
-    async fn new(path: String) -> Result<Self, Box<dyn Error>> {
+    async fn new(path: String) -> GResult<Self> {
         let s = Self {
             path,
             balance: 0,
@@ -104,7 +115,7 @@ impl Account {
         Ok(s)
     }
 
-    async fn update_file(&self) -> Result<(), Box<dyn Error>> {
+    async fn update_file(&self) -> GResult<()> {
         fs::write(&self.path, &serde_json::to_string(self)?).await?;
         Ok(())
     }
@@ -113,11 +124,27 @@ impl Account {
         serde_json::from_str(&read_to_string(path).ok()?).ok()?
     }
 
+    pub async fn delete(&mut self) -> Result<(), String> {
+        if self.balance != 0 {
+            return Err(format!("Can't delete account, balance not zero: {}", self.balance as f64 / 100.0));
+        }
+        if self.portfolio.iter().any(|(_, q)| q != &0) {
+            return Err(format!("Can't delete account, portfolio not empty: {:?}", self.portfolio));
+        }
+        if self.buys.iter().any(|(_, o)| o.iter().any(|(_, q)| q != &0)) {
+            return Err(format!("Can't delete account, still have buy orders: {:?}", self.buys));
+        }
+        if self.sells.iter().any(|(_, o)| o.iter().any(|(_, q)| q != &0)) {
+            return Err(format!("Can't delete account, still have sell orders: {:?}", self.sells));
+        }
+        fs::remove_file(&self.path).await.map_err(|e| format!("Internal server error {e}"))
+    }
+
     pub fn get_balance(&self) -> u64 {
         self.balance
     }
 
-    pub async fn set_balance(&mut self, value: u64) -> Result<(), Box<dyn Error>> {
+    pub async fn set_balance(&mut self, value: u64) -> GResult<()> {
         self.balance = value;
         self.update_file().await
     }
@@ -126,16 +153,12 @@ impl Account {
         &self.portfolio
     }
 
-    pub async fn add_stock(&mut self, t: Ticker, q: Quantity) -> Result<(), Box<dyn Error>> {
+    pub async fn add_stock(&mut self, t: Ticker, q: Quantity) -> GResult<()> {
         *self.portfolio.entry(t).or_default() += q;
         self.update_file().await
     }
 
-    pub async fn deduct_stock(
-        &mut self,
-        t: Ticker,
-        q: Quantity,
-    ) -> Result<Quantity, Box<dyn Error>> {
+    pub async fn deduct_stock(&mut self, t: Ticker, q: Quantity) -> GResult<Quantity> {
         let current = self.portfolio.entry(t).or_default();
         let deducted = (*current).min(q);
         *current -= deducted;
@@ -151,7 +174,7 @@ impl Account {
             quantity,
             price,
         }: Order,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> GResult<()> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,
@@ -170,7 +193,7 @@ impl Account {
             quantity,
             price,
         }: Order,
-    ) -> Result<Quantity, Box<dyn Error>> {
+    ) -> GResult<Quantity> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,

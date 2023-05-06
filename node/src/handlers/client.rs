@@ -1,15 +1,15 @@
 use super::get_value_type;
 use crate::{Global, NodeID};
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 
 mod account;
-mod balance;
-mod market;
-mod order;
-mod stock;
+// mod balance;
+// mod market;
+// mod order;
+// mod stock;
 
 #[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct UserID {
@@ -54,10 +54,10 @@ enum Target {
 }
 
 impl Req {
-    fn from_str(s: &str) -> Result<Req, Box<dyn Error>> {
+    fn from_str(s: &str) -> GResult<Req> {
         let (req_type, value) = get_value_type(s)?;
 
-        let err: Result<Req, Box<dyn Error>> = Err(Box::from(format!("Wrong type {}.", req_type,)));
+        let err: GResult<Req> = Err(Box::from(format!("Wrong type {}.", req_type)));
 
         let t = req_type.into_bytes();
 
@@ -98,7 +98,12 @@ pub async fn handler(
     FirstLine(user_id): FirstLine,
     mut rw: ReadWriter,
     global: Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
+    let state = global.state.read().await;
+    if user_id.id >= state.get_accounts().len() || user_id.node_id != state.get_id() {
+        return Err(Box::from(format!("Bad user_id: {user_id:?}")));
+    }
+    drop(state);
     loop {
         let line = rw.read_line().await?;
         if line == "bye" {
@@ -107,11 +112,17 @@ pub async fn handler(
         let req = Req::from_str(&line)?;
         let res = match req.target {
             Target::Account => account::handler(&user_id, &req, &mut rw, &global).await?,
-            Target::Balance => balance::handler(&user_id, &req, &mut rw, &global).await?,
-            Target::Market => market::handler(&user_id, &req, &mut rw, &global).await?,
-            Target::Order => order::handler(&user_id, &req, &mut rw, &global).await?,
-            Target::Stock => stock::handler(&user_id, &req, &mut rw, &global).await?,
+            _ => todo!(),
+            // Target::Balance => balance::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            // Target::Market => market::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            // Target::Stock => stock::handler(&user_id, &account, &req, &mut rw, &global).await?,
         };
-        println!("repsonded request {req:?} from client {user_id:?} with {res:?}")
+        println!("repsonded request {req:?} from client {user_id:?} with {res:?}");
+        if matches!(req.target, Target::Account) && matches!(req.crud, CRUD::Delete) {
+            return Ok(format!(
+                "Connection with user {user_id:?} terminated as account deleted."
+            ));
+        }
     }
 }

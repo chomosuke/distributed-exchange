@@ -1,13 +1,13 @@
-use super::{Req, UserID};
+use super::{Req, UserID, CRUD};
 use crate::Global;
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use std::{error::Error, sync::Arc};
 
 pub async fn handler(
     user_id: &UserID,
-    req: &Req,
+    Req { crud, value, .. }: &Req,
     rw: &mut ReadWriter,
     global: &Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
     todo!()
 }

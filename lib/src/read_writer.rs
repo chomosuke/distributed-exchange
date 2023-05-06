@@ -1,4 +1,4 @@
-use std::{error::Error, net::SocketAddr};
+use std::net::SocketAddr;
 
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
@@ -7,6 +7,8 @@ use tokio::{
         TcpStream,
     },
 };
+
+use crate::GResult;
 
 pub struct ReadWriter {
     peer_addr: Result<SocketAddr, String>,
@@ -25,14 +27,14 @@ impl ReadWriter {
         }
     }
 
-    pub async fn write_line(&mut self, s: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn write_line(&mut self, s: &str) -> GResult<()> {
         self.writer.write_all(s.as_bytes()).await?;
         self.writer.write_u8(b'\n').await?;
         self.writer.flush().await?;
         Ok(())
     }
 
-    pub async fn read_line(&mut self) -> Result<String, Box<dyn Error>> {
+    pub async fn read_line(&mut self) -> GResult<String> {
         let mut line = Vec::new();
         self.reader.read_until(b'\n', &mut line).await?;
         Ok(String::from_utf8(line)?)

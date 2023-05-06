@@ -7,12 +7,14 @@ use lib::read_writer::ReadWriter;
 use serde::Deserialize;
 use serde_json::json;
 use state::NodeID;
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, error::Error};
 use structopt::StructOpt;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{mpsc::UnboundedSender, RwLock},
 };
+
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(StructOpt)]
 struct Args {

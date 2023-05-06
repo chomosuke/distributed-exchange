@@ -1,5 +1,5 @@
 use crate::Global;
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde_json::{Map, Value};
 use std::{error::Error, str::FromStr, sync::Arc};
 
@@ -7,7 +7,7 @@ pub mod client;
 pub mod coordinator;
 pub mod node;
 
-pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
+pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String> {
     let first_line = rw.read_line().await?;
 
     if let Ok(first_line) = client::FirstLine::from_str(&first_line) {
@@ -19,7 +19,7 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> Result<String, 
     }
 }
 
-fn get_value_type(s: &str) -> Result<(String, Option<Value>), Box<dyn Error>> {
+fn get_value_type(s: &str) -> GResult<(String, Option<Value>)> {
     let mut obj = serde_json::from_str(s)
         .ok()
         .and_then(|v: Value| serde_json::from_value::<Map<_, _>>(v).ok())

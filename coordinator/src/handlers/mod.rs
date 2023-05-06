@@ -1,5 +1,5 @@
-use lib::read_writer::ReadWriter;
-use std::{error::Error, str::FromStr, sync::Arc};
+use lib::{read_writer::ReadWriter, GResult};
+use std::{str::FromStr, sync::Arc};
 
 use crate::Global;
 
@@ -9,7 +9,7 @@ pub mod node;
 pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
     let first_line = rw.read_line().await?;
 
     if let Ok(first_line) = client::FirstLine::from_str(&first_line) {

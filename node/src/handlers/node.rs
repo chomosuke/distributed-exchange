@@ -4,7 +4,7 @@ mod offer_send;
 mod order;
 
 use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc};
 use tokio::{select, sync::mpsc};
@@ -56,7 +56,7 @@ pub async fn handler(
     FirstLine(id): FirstLine,
     mut rw: ReadWriter,
     global: Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
     let mut others = global.others.write().await;
     let addr = rw.peer_addr()?;
 

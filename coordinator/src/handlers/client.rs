@@ -1,6 +1,6 @@
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 use tokio::sync::oneshot;
 
 use super::node::Message;
@@ -35,7 +35,7 @@ pub async fn handler(
     first_line: FirstLine,
     mut rw: ReadWriter,
     global: Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
     match first_line {
         FirstLine::FindNode(user_id) => {
             let node_records = global.node_records.read().await;

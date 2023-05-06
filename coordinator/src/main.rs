@@ -1,17 +1,15 @@
 #![allow(clippy::new_without_default)]
-use std::{net::SocketAddr, sync::Arc};
+mod handlers;
 
+use crate::handlers::handler;
 use lib::read_writer::ReadWriter;
 use serde::Serialize;
+use std::{net::SocketAddr, sync::Arc, error::Error};
 use structopt::StructOpt;
 use tokio::{
     net::TcpListener,
     sync::{mpsc::UnboundedSender, RwLock},
 };
-
-use crate::handlers::handler;
-
-mod handlers;
 
 #[derive(StructOpt)]
 struct Args {

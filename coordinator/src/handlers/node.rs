@@ -1,9 +1,8 @@
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde::Deserialize;
 use serde_json::json;
-use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
+use std::{net::SocketAddr, str::FromStr, sync::Arc};
 use tokio::sync::{mpsc, oneshot::Sender};
-
 use super::client::UserID;
 use crate::{Global, NodeRecord};
 
@@ -37,7 +36,7 @@ pub async fn handler(
     first_line: FirstLine,
     mut rw: ReadWriter,
     global: Arc<Global>,
-) -> Result<String, Box<dyn Error>> {
+) -> GResult<String> {
     let mut node_records = global.node_records.write().await;
     let mut account_nums = global.account_nums.write().await;
     let id = first_line

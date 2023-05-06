@@ -1,8 +1,8 @@
 use super::{client::UserID, get_value_type, node};
 use crate::{Global, Node, NodeID};
-use lib::read_writer::ReadWriter;
+use lib::{read_writer::ReadWriter, GResult};
 use serde::Deserialize;
-use std::{error::Error, net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpStream;
 
 #[derive(Deserialize)]
@@ -11,7 +11,7 @@ struct JoinedReq {
     addr: SocketAddr,
 }
 
-pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> Result<String, Box<dyn Error>> {
+pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String> {
     let req = rw.read_line().await?;
     let (req_type, _) = get_value_type(&req)?;
     let this_id = (*global.state.read().await).get_id();
