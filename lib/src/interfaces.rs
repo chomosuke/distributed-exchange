@@ -27,7 +27,7 @@ pub struct UserID {
     pub node_id: NodeID,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum OrderType {
     #[serde(rename = "buy")]
     Buy,
