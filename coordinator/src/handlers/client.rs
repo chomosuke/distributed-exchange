@@ -1,4 +1,4 @@
-use lib::{read_writer::ReadWriter, GResult, interfaces::UserID};
+use lib::{read_writer::ReadWriter, GResult, interfaces::UserID, lock::DeadLockDetect};
 use std::{str::FromStr, sync::Arc};
 use tokio::sync::oneshot;
 
@@ -31,7 +31,7 @@ pub async fn handler(
 ) -> GResult<String> {
     match first_line {
         FirstLine::FindNode(user_id) => {
-            let node_records = global.node_records.read().await;
+            let node_records = global.node_records.read().dl().await;
             let addr = node_records[user_id.node_id].address;
 
             rw.write_line(&addr.to_string()).await?;
@@ -42,8 +42,8 @@ pub async fn handler(
             ))
         }
         FirstLine::CAccount => {
-            let account_nums = global.account_nums.read().await;
-            let node_records = global.node_records.read().await;
+            let account_nums = global.account_nums.read().dl().await;
+            let node_records = global.node_records.read().dl().await;
 
             let mut min_acc = 0;
             for i in 0..account_nums.len() {

@@ -1,6 +1,6 @@
 use super::{Crud, Req, UserID};
 use crate::Global;
-use lib::GResult;
+use lib::{GResult, lock::DeadLockDetect};
 use std::sync::Arc;
 
 pub async fn handler(
@@ -10,9 +10,9 @@ pub async fn handler(
 ) -> GResult<String> {
     match crud {
         Crud::Delete => {
-            let mut state = global.state.write().await;
+            let mut state = global.state.write().dl().await;
             let account = state.remove_account(user_id.id).ok_or("Invalid account")?;
-            let delete_status = account.write().await.delete().await;
+            let delete_status = account.write().dl().await.delete().await;
             match delete_status {
                 Ok(()) => {
                     Ok("\"ok\"".to_string())

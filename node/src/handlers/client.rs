@@ -1,6 +1,6 @@
 use super::get_value_type;
 use crate::Global;
-use lib::{interfaces::UserID, read_writer::ReadWriter, GResult};
+use lib::{interfaces::UserID, read_writer::ReadWriter, GResult, lock::DeadLockDetect};
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
 
@@ -92,7 +92,7 @@ pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> GResult<String> {
-    let state = global.state.read().await;
+    let state = global.state.read().dl().await;
     if user_id.id >= state.get_accounts().len() || user_id.node_id != state.get_id() {
         return Err(Box::from(format!("Bad user_id: {user_id:?}")));
     }

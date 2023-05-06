@@ -1,5 +1,6 @@
 use crate::{Global, NodeRecord};
 use lib::interfaces::UserID;
+use lib::lock::DeadLockDetect;
 use lib::{read_writer::ReadWriter, GResult};
 use serde::Deserialize;
 use serde_json::json;
@@ -37,8 +38,8 @@ pub async fn handler(
     mut rw: ReadWriter,
     global: Arc<Global>,
 ) -> GResult<String> {
-    let mut node_records = global.node_records.write().await;
-    let mut account_nums = global.account_nums.write().await;
+    let mut node_records = global.node_records.write().dl().await;
+    let mut account_nums = global.account_nums.write().dl().await;
     let id = first_line
         .state
         .as_ref()

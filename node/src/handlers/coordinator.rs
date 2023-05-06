@@ -1,6 +1,6 @@
 use super::{get_value_type, node};
 use crate::{Global, Node, NodeID};
-use lib::{read_writer::ReadWriter, GResult, interfaces::UserID};
+use lib::{read_writer::ReadWriter, GResult, interfaces::UserID, lock::DeadLockDetect};
 use serde::Deserialize;
 use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpStream;
@@ -14,7 +14,7 @@ struct JoinedReq {
 pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String> {
     let req = rw.read_line().await?;
     let (req_type, _) = get_value_type(&req)?;
-    let this_id = (*global.state.read().await).get_id();
+    let this_id = (*global.state.read().dl().await).get_id();
 
     match req_type.as_str() {
         "joined" => {
@@ -43,7 +43,7 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String>
             });
         }
         "C account" => {
-            let acc_id = global.state.write().await.create_account().await?;
+            let acc_id = global.state.write().dl().await.create_account().await?;
             rw.write_line(&serde_json::to_string(&UserID {
                 id: acc_id,
                 node_id: this_id,

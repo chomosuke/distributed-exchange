@@ -1,13 +1,20 @@
 use std::{future::Future, time::Duration};
 
-use tokio::time::{timeout, Timeout};
+use async_trait::async_trait;
+use tokio::time::timeout;
 
-pub trait DeadLockDetect<F: Future> {
-    fn dl(future: F) -> Timeout<F>;
+#[async_trait]
+pub trait DeadLockDetect {
+    async fn dl(self) -> Self::Output
+    where
+        Self: Future;
 }
 
-impl<F: Future> DeadLockDetect<F> for F {
-    fn dl(future: F) -> Timeout<F> {
-        timeout(Duration::new(5, 0), future)
+#[async_trait]
+impl<F: Future + Send> DeadLockDetect for F {
+    async fn dl(self) -> F::Output {
+        timeout(Duration::new(5, 0), self)
+            .await
+            .expect("Timeout! Future took longer than 5 second")
     }
 }

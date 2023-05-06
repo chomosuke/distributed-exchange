@@ -7,10 +7,9 @@ use std::{
 };
 
 use lib::interfaces::{
-    AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID, OrderType,
+    AllOrders, BuySell, CentCount, NodeID, OrderType, Quantity, QuantityPrice, Ticker, UserID,
 };
 use serde::{Deserialize, Serialize};
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Order {

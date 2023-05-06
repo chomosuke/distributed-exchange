@@ -6,7 +6,11 @@
 
 use crate::{handlers::node::TradeID, matcher::Trade};
 use lib::{
-    interfaces::{AllOrders, BuySell, CentCount, NodeID, Quantity, QuantityPrice, Ticker, UserID, OrderType},
+    interfaces::{
+        AllOrders, BuySell, CentCount, NodeID, OrderReq, OrderType, Quantity, QuantityPrice,
+        Ticker, UserID,
+    },
+    lock::DeadLockDetect,
     GResult,
 };
 use serde::{Deserialize, Serialize};
@@ -119,12 +123,14 @@ impl State {
                     .get(&buyer_id.id)
                     .expect("Matcher gave invalid UserID")
                     .write()
+                    .dl()
                     .await;
                 let seller = &mut self
                     .accounts
                     .get(&seller_id.id)
                     .expect("Matcher gave invalid UserID")
                     .write()
+                    .dl()
                     .await;
                 let new_buyer_balance = buyer.get_balance() - quantity * price;
                 buyer.set_balance(new_buyer_balance).await?;
@@ -138,13 +144,19 @@ impl State {
             } else {
                 // One of them remote
                 let (mut local, remote) = if trade.buyer_id.node_id == self.id {
-                    (self.accounts[&trade.buyer_id.id].write().await, trade.seller_id.clone())
+                    (
+                        self.accounts[&trade.buyer_id.id].write().dl().await,
+                        trade.seller_id.clone(),
+                    )
                 } else {
                     assert_eq!(
                         trade.seller_id.node_id, self.id,
                         "Matcher error, both buyer and seller are not local"
                     );
-                    (self.accounts[&trade.seller_id.id].write().await, trade.buyer_id.clone())
+                    (
+                        self.accounts[&trade.seller_id.id].write().dl().await,
+                        trade.buyer_id.clone(),
+                    )
                 };
                 local.add_pending(self.next_trade_id, trade.clone());
 
@@ -155,13 +167,6 @@ impl State {
         self.update_file().await?;
         Ok(offers)
     }
-}
-
-pub struct Order {
-    pub order_type: OrderType,
-    pub ticker: Ticker,
-    pub quantity: Quantity,
-    pub price: CentCount,
 }
 
 /// need to tell matcher seperately
@@ -287,12 +292,12 @@ impl Account {
 
     pub async fn add_order(
         &mut self,
-        Order {
+        OrderReq {
             order_type,
             ticker,
             quantity,
             price,
-        }: Order,
+        }: OrderReq,
     ) -> GResult<()> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
@@ -306,12 +311,12 @@ impl Account {
     /// can come from trade request or cancel order
     pub async fn deduct_order(
         &mut self,
-        Order {
+        OrderReq {
             order_type,
             ticker,
             quantity,
             price,
-        }: Order,
+        }: OrderReq,
     ) -> GResult<Quantity> {
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
@@ -347,7 +352,7 @@ impl Account {
             );
             self.balance -= to_deduct;
         } else if seller_id == self.id {
-            let current_quantity = self.portfolio.entry(ticker).or_default();
+            let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
             assert!(
                 *current_quantity > quantity,
                 "Invalid trade, not enough stock"
@@ -356,6 +361,24 @@ impl Account {
         } else {
             panic!("This trade doesn't belong to this user");
         }
+
+        // check if enough orders left
+        let current_orders = if buyer_id == self.id {
+            &mut self.buys
+        } else {
+            &mut self.sells
+        };
+        let current_order_quantity = current_orders
+            .entry(ticker)
+            .or_default()
+            .entry(price)
+            .or_default();
+        assert!(
+            quantity <= *current_order_quantity,
+            "Invalid trade, not enough quantity of the stock"
+        );
+        *current_order_quantity -= quantity;
+
         self.update_file().await
     }
 
