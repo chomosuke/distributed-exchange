@@ -37,6 +37,7 @@ impl ReadWriter {
     pub async fn read_line(&mut self) -> GResult<String> {
         let mut line = Vec::new();
         self.reader.read_until(b'\n', &mut line).await?;
+        line.pop();
         Ok(String::from_utf8(line)?)
     }
 

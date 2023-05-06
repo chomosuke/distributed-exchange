@@ -53,7 +53,7 @@ pub async fn handler(
 
     // check if expecting
     if let Some(Node::DisConnected(expected_addr)) = others.get_mut(&id) {
-        if expected_addr == &addr {
+        if expected_addr.ip() == addr.ip() {
             Ok(())
         } else {
             Err(format!("Not expecting node {id} from {addr}"))

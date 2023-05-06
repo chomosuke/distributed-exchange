@@ -48,7 +48,7 @@ impl Global {
             others: RwLock::new(
                 others
                     .iter()
-                    .map(|sr| (sr.id, Node::DisConnected(sr.address)))
+                    .map(|sr| (sr.id, Node::DisConnected(sr.addr)))
                     .collect(),
             ),
         }
@@ -63,7 +63,7 @@ struct InitInfo {
 #[derive(Deserialize)]
 pub struct NodeRecord {
     id: NodeID,
-    address: SocketAddr,
+    addr: SocketAddr,
 }
 
 #[tokio::main]
@@ -101,7 +101,7 @@ async fn main() {
 
     // Get Id from coordinator
     let init_info: InitInfo =
-        serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error.");
+        serde_json::from_str(&coord_rw.read_line().await.unwrap()).expect("Coordinator Error");
 
     let state = state.unwrap_or_else(|| {
         State::new(
@@ -112,7 +112,7 @@ async fn main() {
 
     println!("Node Id: {}", state.get_id());
 
-    coord_rw.write_line("ok").await.expect("Write failed");
+    coord_rw.write_line("\"ok\"").await.expect("Write failed");
 
     let global = Arc::new(Global::new(state, init_info.others));
 

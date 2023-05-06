@@ -71,7 +71,7 @@ pub async fn handler(
     }
 
     let line = rw.read_line().await?;
-    if line != "ok" {
+    if line != "\"ok\"" {
         panic!("Node at {addr} replied with {line} instead of \"ok\"",);
     }
 
