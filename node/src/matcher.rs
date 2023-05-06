@@ -66,7 +66,6 @@ impl Matcher {
         AllOrders(all_orders)
     }
 
-    #[allow(dead_code)] // TODO: investigate if this is needed
     pub fn deduct_order(
         &mut self,
         Order {
@@ -83,9 +82,9 @@ impl Matcher {
             OrderType::Sell => &mut self.sells,
         }
         .get_mut(&ticker)
-        .ok_or(0_u64)?
+        .ok_or(quantity)?
         .get_mut(&price)
-        .ok_or(0_u64)?;
+        .ok_or(quantity)?;
         for (_, quantity) in existing_orders
             .iter_mut()
             .filter(|(other_user, _)| &user_id == other_user)
@@ -93,8 +92,11 @@ impl Matcher {
             let deductable = min(to_deduct, *quantity);
             to_deduct -= deductable;
             *quantity -= deductable;
+            if to_deduct == 0 {
+                return Ok(());
+            }
         }
-        Ok(())
+        Err(to_deduct)
     }
 
     pub fn add_order(

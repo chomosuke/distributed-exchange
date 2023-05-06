@@ -1,5 +1,9 @@
 use super::{Crud, Req, UserID};
-use crate::{handlers::node::Message, matcher::Order, Global};
+use crate::{
+    matcher::Order,
+    process_order::{process_order, OrderOrigin},
+    Global,
+};
 use lib::{interfaces::OrderReq, lock::DeadLockDetect, GResult};
 use std::sync::Arc;
 
@@ -50,6 +54,7 @@ pub async fn handler(
                         quantity,
                         price,
                     },
+                    OrderOrigin::Outgoing,
                     &global,
                 )
                 .await
@@ -61,47 +66,16 @@ pub async fn handler(
             let account = account.read().dl().await;
             Ok(serde_json::to_string(&account.get_orders())?)
         }
-        // Crud::Delete => {}
+        Crud::Delete => {
+            let order: OrderReq = serde_json::from_value(value.ok_or("Bad value")?)?;
+            let mut account = account.write().dl().await;
+            let quantity = account.deduct_order(order.clone()).await?;
+            let OrderReq { order_type, ticker, price, .. } = order;
+            global.matcher.write().dl().await.deduct_order(Order {
+                order_type, ticker, user_id: user_id.clone(), price, quantity,
+            }).expect("Matcher account out of sync!");
+            Ok(quantity.to_string())
+        }
         _ => Err(Box::from(format!("Can not {crud:?} order."))),
     }
-}
-
-pub async fn process_order(order: Order, global: &Arc<Global>) -> GResult<()> {
-    let mut matcher = global.matcher.write().dl().await;
-    let (remaining_order, matches) = matcher.add_order(order);
-
-    if remaining_order.quantity > 0 {
-        // Send the order
-        for (_, node) in global.others.read().dl().await.iter() {
-            match node {
-                crate::Node::DisConnected(_) => todo!(),
-                crate::Node::Connected { sender } => sender.send(Message::Order(remaining_order.clone()))?,
-            }
-        }
-    }
-
-    // Process matches and register pending offer
-    let offers = global
-        .state
-        .write()
-        .dl()
-        .await
-        .process_matches(matches)
-        .await?;
-    // Now send the offers
-    for (node_id, trade) in offers {
-        match global
-            .others
-            .read()
-            .dl()
-            .await
-            .get(&node_id)
-            .expect("Bad node_id for trade offer")
-        {
-            crate::Node::DisConnected(_) => todo!(),
-            crate::Node::Connected { sender } => sender.send(Message::Offer(trade))?,
-        }
-    }
-    // Reply will be handled in handlers/node/offer_reply.rs
-    Ok(())
 }

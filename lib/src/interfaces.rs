@@ -35,7 +35,7 @@ pub enum OrderType {
     Sell,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct OrderReq {
     pub order_type: OrderType,
     pub ticker: Ticker,

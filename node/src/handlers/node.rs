@@ -82,7 +82,7 @@ pub async fn handler(
                 let (req_type, value) = get_value_type(&line)?;
                 let value = value.ok_or("No value for request")?;
                 match req_type.as_str() {
-                    // "order" => order::handler(&value, &mut rw, &global).await?,
+                    "order" => order_recv::handler(value, &mut rw, &global).await?,
                     "offer" => offer_recv::handler(value, &mut rw, &global).await?,
                     "reply" => offer_replied::handler(value, &mut rw, &global).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
