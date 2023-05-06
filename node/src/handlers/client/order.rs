@@ -1,6 +1,6 @@
 use super::{Crud, Req, UserID};
-use crate::{matcher::Order, Global};
-use lib::{interfaces::OrderReq, GResult, lock::DeadLockDetect};
+use crate::{handlers::node::Message, matcher::Order, Global};
+use lib::{interfaces::OrderReq, lock::DeadLockDetect, GResult};
 use std::sync::Arc;
 
 pub async fn handler(
@@ -28,12 +28,17 @@ pub async fn handler(
                 .get_accounts()
                 .get(&user_id.id)
                 .ok_or("Invalid account")?;
-            account.write().dl().await.add_order(OrderReq {
-                order_type,
-                ticker: ticker.clone(),
-                quantity,
-                price,
-            }).await?;
+            account
+                .write()
+                .dl()
+                .await
+                .add_order(OrderReq {
+                    order_type,
+                    ticker: ticker.clone(),
+                    quantity,
+                    price,
+                })
+                .await?;
             let global = Arc::clone(global);
             let user_id = user_id.clone();
             tokio::spawn(async move {
@@ -46,7 +51,8 @@ pub async fn handler(
                         price,
                     },
                     &global,
-                ).await;
+                )
+                .await.expect("Process order failed");
             });
             Ok(r#""ok""#.to_owned())
         }
@@ -59,10 +65,30 @@ pub async fn handler(
     }
 }
 
-pub async fn process_order(order: Order, global: &Arc<Global>) {
+pub async fn process_order(order: Order, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl().await;
     let matches = matcher.add_order(order);
-    let mut offers = global.state.write().dl().await.process_matches(matches).await;
+    let offers = global
+        .state
+        .write()
+        .dl()
+        .await
+        .process_matches(matches)
+        .await?;
     // Now send the offers
-
+    for (node_id, trade) in offers {
+        match global
+            .others
+            .read()
+            .dl()
+            .await
+            .get(&node_id)
+            .expect("Bad node_id for trade offer")
+        {
+            crate::Node::DisConnected(_) => todo!(),
+            crate::Node::Connected { sender } => sender.send(Message::Offer(trade))?,
+        }
+    }
+    // Reply will be handled in handlers/node/offer_reply.rs
+    Ok(())
 }
