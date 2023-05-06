@@ -22,10 +22,11 @@ use tokio::{fs, sync::RwLock};
 
 pub struct State {
     id: NodeID,
-    accounts: HashMap<usize, RwLock<Account>>,
     next_account_id: usize,
-    per_dir: String,
     next_trade_id: usize,
+    pending_to_user: HashMap<TradeID, usize>,
+    accounts: HashMap<usize, RwLock<Account>>,
+    per_dir: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -33,16 +34,18 @@ struct StateFile {
     id: NodeID,
     next_account_id: usize,
     next_trade_id: usize,
+    pending_to_user: HashMap<TradeID, usize>,
 }
 
 impl State {
     pub fn new(id: NodeID, per_dir: String) -> Self {
         Self {
             id,
-            accounts: HashMap::new(),
-            per_dir,
             next_account_id: 0,
             next_trade_id: 0,
+            accounts: HashMap::new(),
+            pending_to_user: HashMap::new(),
+            per_dir,
         }
     }
 
@@ -61,6 +64,7 @@ impl State {
             next_account_id: state_file.next_account_id,
             next_trade_id: state_file.next_trade_id,
             per_dir,
+            pending_to_user: HashMap::new(),
         })
     }
 
@@ -71,6 +75,7 @@ impl State {
                 id: self.id,
                 next_account_id: self.next_account_id,
                 next_trade_id: self.next_trade_id,
+                pending_to_user: self.pending_to_user.clone(),
             })?,
         )
         .await?;
@@ -165,6 +170,9 @@ impl State {
                 local.add_pending(trade_id, trade.clone()).await?;
                 self.next_trade_id += 1;
 
+                // record which TradeID belong to which user
+                self.pending_to_user.insert(trade_id, local.id.id);
+
                 // return the offer to be sent
                 offers.push((
                     remote.node_id,
@@ -177,6 +185,20 @@ impl State {
         }
         self.update_file().await?;
         Ok(offers)
+    }
+
+    pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+        let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
+        let account = &self.accounts[&user_id];
+        account.write().dl().await.commit_pending(trade_id);
+        self.update_file().await
+    }
+
+    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+        let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
+        let account = &self.accounts[&user_id];
+        account.write().dl().await.abort_pending(trade_id);
+        self.update_file().await
     }
 }
 
@@ -341,6 +363,52 @@ impl Account {
         Ok(deducted)
     }
 
+    pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<bool> {
+        let Trade {
+            quantity,
+            price,
+            ticker,
+            buyer_id,
+            seller_id,
+        } = trade;
+
+        // check if enough orders left
+        let current_orders = if buyer_id == self.id {
+            &mut self.buys
+        } else {
+            &mut self.sells
+        };
+        let current_order_quantity = current_orders
+            .entry(ticker.clone())
+            .or_default()
+            .entry(price)
+            .or_default();
+        if quantity <= *current_order_quantity {
+            return Ok(false);
+        }
+
+        if buyer_id == self.id {
+            let to_deduct = quantity * price;
+            if self.balance > to_deduct {
+                return Ok(false);
+            }
+            // commit
+            self.balance -= to_deduct;
+        } else if seller_id == self.id {
+            let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
+            if *current_quantity < quantity {
+                return Ok(false);
+            }
+            // commit
+            *current_quantity -= quantity;
+        } else {
+            panic!("This trade doesn't belong to this user");
+        }
+        *current_order_quantity -= quantity;
+        self.update_file().await?;
+        Ok(true)
+    }
+
     /// this function assume the trade will succeed
     pub async fn add_pending(&mut self, trade_id: TradeID, trade: Trade) -> GResult<()> {
         assert!(
@@ -391,52 +459,6 @@ impl Account {
         *current_order_quantity -= quantity;
 
         self.update_file().await
-    }
-
-    pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<bool> {
-        let Trade {
-            quantity,
-            price,
-            ticker,
-            buyer_id,
-            seller_id,
-        } = trade;
-
-        // check if enough orders left
-        let current_orders = if buyer_id == self.id {
-            &mut self.buys
-        } else {
-            &mut self.sells
-        };
-        let current_order_quantity = current_orders
-            .entry(ticker.clone())
-            .or_default()
-            .entry(price)
-            .or_default();
-        if quantity <= *current_order_quantity {
-            return Ok(false);
-        }
-
-        if buyer_id == self.id {
-            let to_deduct = quantity * price;
-            if self.balance > to_deduct {
-                return Ok(false);
-            }
-            // commit
-            self.balance -= to_deduct;
-        } else if seller_id == self.id {
-            let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
-            if *current_quantity < quantity {
-                return Ok(false);
-            }
-            // commit
-            *current_quantity -= quantity;
-        } else {
-            panic!("This trade doesn't belong to this user");
-        }
-        *current_order_quantity -= quantity;
-        self.update_file().await?;
-        Ok(true)
     }
 
     pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {

@@ -68,7 +68,18 @@ pub async fn handler(
 
 pub async fn process_order(order: Order, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl().await;
-    let matches = matcher.add_order(order);
+    let (remaining_order, matches) = matcher.add_order(order);
+
+    if remaining_order.quantity > 0 {
+        // Send the order
+        for (_, node) in global.others.read().dl().await.iter() {
+            match node {
+                crate::Node::DisConnected(_) => todo!(),
+                crate::Node::Connected { sender } => sender.send(Message::Order(remaining_order.clone()))?,
+            }
+        }
+    }
+
     // Process matches and register pending offer
     let offers = global
         .state

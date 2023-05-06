@@ -1,9 +1,10 @@
 mod offer_recv;
 mod offer_replied;
 mod offer_send;
-mod order;
+mod order_recv;
+mod order_send;
 
-use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
+use crate::{handlers::get_value_type, matcher::{Trade, Order}, Global, Node, NodeID};
 use lib::{lock::DeadLockDetect, read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
@@ -23,6 +24,7 @@ impl FromStr for FirstLine {
 #[derive(Debug)]
 pub enum Message {
     Offer(Offer),
+    Order(Order),
 }
 
 pub type TradeID = usize;
@@ -67,12 +69,13 @@ pub async fn handler(
     println!("Connected with Node {id} from addr {addr}");
 
     loop {
-        let res = select! {
+        select! {
             msg = recver.recv() => {
                 let msg = msg.ok_or(format!("Channel for node {addr} closed!"))?;
-                match msg {
+                 match msg {
                     Message::Offer(offer) => offer_send::handler(offer, &mut rw, &global).await?,
-                }
+                    Message::Order(order) => order_send::handler(order, &mut rw, &global).await?,
+                };
             },
             line = rw.read_line() => {
                 let line = line?;
@@ -80,13 +83,11 @@ pub async fn handler(
                 let value = value.ok_or("No value for request")?;
                 match req_type.as_str() {
                     // "order" => order::handler(&value, &mut rw, &global).await?,
-                    "offer" => offer_recv::handler(value, &global).await?,
-                    // "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
+                    "offer" => offer_recv::handler(value, &mut rw, &global).await?,
+                    "reply" => offer_replied::handler(value, &mut rw, &global).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
                 }
             },
         };
-        rw.write_line(&res).await?;
-        println!("Sent {res} to node {id}");
     }
 }

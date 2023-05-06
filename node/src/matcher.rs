@@ -11,7 +11,7 @@ use lib::interfaces::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Order {
     pub order_type: OrderType,
     pub ticker: Ticker,
@@ -105,7 +105,7 @@ impl Matcher {
             quantity: mut to_deduct,
             price,
         }: Order,
-    ) -> Vec<Trade> {
+    ) -> (Order, Vec<Trade>) {
         let existing_orders = match order_type {
             OrderType::Buy => &mut self.sells,
             OrderType::Sell => &mut self.buys,
@@ -153,6 +153,24 @@ impl Matcher {
             existing_orders.pop_first();
         }
 
-        proposed_trades
+        let remaining_order = Order {
+            order_type,
+            ticker,
+            user_id,
+            quantity: to_deduct,
+            price,
+        };
+        if remaining_order.quantity != 0 {
+            match remaining_order.order_type {
+                OrderType::Buy => &mut self.buys,
+                OrderType::Sell => &mut self.sells,
+            }
+            .entry(remaining_order.ticker.clone())
+            .or_default()
+            .entry(remaining_order.price)
+            .or_default()
+            .push_back((remaining_order.user_id.clone(), remaining_order.quantity));
+        }
+        (remaining_order, proposed_trades)
     }
 }
