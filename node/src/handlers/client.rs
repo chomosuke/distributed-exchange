@@ -6,7 +6,7 @@ use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
 
 mod account;
-// mod balance;
+mod balance;
 // mod market;
 // mod order;
 // mod stock;
@@ -111,13 +111,14 @@ pub async fn handler(
         }
         let req = Req::from_str(&line)?;
         let res = match req.target {
-            Target::Account => account::handler(&user_id, &req, &mut rw, &global).await?,
-            _ => todo!(),
-            // Target::Balance => balance::handler(&user_id, &account, &req, &mut rw, &global).await?,
+            Target::Account => account::handler(&user_id, &req, &global).await?,
+            Target::Balance => balance::handler(&user_id, &req, &global).await?,
+            _ => return Err(Box::from("")),
             // Target::Market => market::handler(&user_id, &account, &req, &mut rw, &global).await?,
             // Target::Order => order::handler(&user_id, &account, &req, &mut rw, &global).await?,
             // Target::Stock => stock::handler(&user_id, &account, &req, &mut rw, &global).await?,
         };
+        rw.write_line(&res);
         println!("repsonded request {req:?} from client {user_id:?} with {res:?}");
         if matches!(req.target, Target::Account) && matches!(req.crud, CRUD::Delete) {
             return Ok(format!(

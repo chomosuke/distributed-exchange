@@ -1,12 +1,11 @@
 use super::{Req, UserID, CRUD};
 use crate::Global;
-use lib::{read_writer::ReadWriter, GResult};
+use lib::GResult;
 use std::sync::Arc;
 
 pub async fn handler(
     user_id: &UserID,
     Req { crud, value, .. }: &Req,
-    rw: &mut ReadWriter,
     global: &Arc<Global>,
 ) -> GResult<String> {
     match crud {
@@ -20,12 +19,10 @@ pub async fn handler(
             match delete_status {
                 Ok(()) => {
                     state.get_accounts_mut().remove(&user_id.id);
-                    rw.write_line("\"Ok\"").await?;
-                    Ok(format!("Successfully deleted account {user_id:?}"))
+                    Ok("\"Ok\"".to_string())
                 }
                 Err(msg) => {
-                    rw.write_line("\"NotEmpty\"");
-                    Ok(msg)
+                    Ok("\"NotEmpty\"".to_string())
                 }
             }
         }

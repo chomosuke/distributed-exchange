@@ -47,7 +47,7 @@ struct OfferReply {
     accepted: bool,
 }
 
-struct PendingOffer {
+pub struct PendingOffer {
     pending: HashMap<TradeID, Trade>,
     next_trade_id: TradeID,
 }
@@ -87,7 +87,8 @@ pub async fn handler(
             msg = recver.recv() => {
                 let msg = msg.ok_or(format!("Channel for node {addr} closed!"))?;
                 let result = match msg {
-                    Message::Matched(trade) => offer_send::handler(trade, &mut rw, &global, &mut pending_offer).await?,
+                    // Message::Matched(trade) => offer_send::handler(trade, &mut rw, &global, &mut pending_offer).await?,
+                    _ => return Err(Box::from("")),
                 };
             },
             line = rw.read_line() => {
@@ -95,9 +96,9 @@ pub async fn handler(
                 let (req_type, value) = get_value_type(&line)?;
                 let value = value.ok_or("No value for request")?;
                 let result = match req_type.as_str() {
-                    "order" => order::handler(&value, &mut rw, &global).await?,
-                    "offer" => offer_recv::handler(&value, &mut rw, &global).await?,
-                    "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
+                    // "order" => order::handler(&value, &mut rw, &global).await?,
+                    // "offer" => offer_recv::handler(&value, &mut rw, &global).await?,
+                    // "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
                 };
             },

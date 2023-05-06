@@ -1,7 +1,7 @@
 use crate::Global;
 use lib::{read_writer::ReadWriter, GResult};
 use serde_json::Value;
-use std::{error::Error, sync::Arc};
+use std::sync::Arc;
 
 pub async fn handler(
     req: &Value,

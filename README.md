@@ -243,7 +243,7 @@ Message format one line per json message:
   ```
   rep:
   ```json
-  "ok"
+  100 // amount deducted
   ```
 - CR for stocks in account.
   req:
