@@ -66,6 +66,7 @@ impl Matcher {
         AllOrders(all_orders)
     }
 
+    #[allow(dead_code)] // TODO: investigate if this is needed
     pub fn deduct_order(
         &mut self,
         Order {

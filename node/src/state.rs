@@ -190,14 +190,14 @@ impl State {
     pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
         let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl().await.commit_pending(trade_id);
+        account.write().dl().await.commit_pending(trade_id).await?;
         self.update_file().await
     }
 
     pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
         let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl().await.abort_pending(trade_id);
+        account.write().dl().await.abort_pending(trade_id).await?;
         self.update_file().await
     }
 }

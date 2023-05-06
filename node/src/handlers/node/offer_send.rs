@@ -4,7 +4,7 @@ use serde_json::json;
 use std::sync::Arc;
 use super::Offer;
 
-pub async fn handler(offer: Offer, rw: &mut ReadWriter, global: &Arc<Global>) -> GResult<()> {
+pub async fn handler(offer: Offer, rw: &mut ReadWriter, _global: &Arc<Global>) -> GResult<()> {
     rw.write_line(&serde_json::to_string(&json!({
         "type": "offer",
         "value": offer,
