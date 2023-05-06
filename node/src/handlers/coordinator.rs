@@ -12,11 +12,12 @@ struct JoinedReq {
 }
 
 pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String> {
-    let req = rw.read_line().await?;
-    let (req_type, _) = get_value_type(&req)?;
     let this_id = (*global.state.read().dl("co17").await).get_id();
 
     loop {
+        let req = rw.read_line().await?;
+        let (req_type, _) = get_value_type(&req)?;
+
         match req_type.as_str() {
             "joined" => {
                 let JoinedReq { id: other_id, addr } = serde_json::from_str(&req)?;
@@ -38,13 +39,19 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String>
                 let global = Arc::clone(&global);
                 tokio::spawn(async move {
                     match node::handler(node::FirstLine(other_id), rw, global).await {
-                        Ok(msg) => println!("Connection terminated successfully: {msg}"),
+                        Ok(msg) => println!("Connection terminated with node: {msg}"),
                         Err(e) => eprintln!("Error: {e}"),
                     }
                 });
             }
             "C account" => {
-                let acc_id = global.state.write().dl("co47").await.create_account().await?;
+                let acc_id = global
+                    .state
+                    .write()
+                    .dl("co47")
+                    .await
+                    .create_account()
+                    .await?;
                 rw.write_line(&serde_json::to_string(&UserID {
                     id: acc_id,
                     node_id: this_id,
@@ -53,6 +60,6 @@ pub async fn handler(mut rw: ReadWriter, global: Arc<Global>) -> GResult<String>
             }
             req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
         }
-        println!("Handled request from coordinator: {req}");
+        println!("Handled request from coordinator: {req}")
     }
 }

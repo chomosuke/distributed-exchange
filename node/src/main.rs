@@ -138,7 +138,7 @@ async fn main() {
         let global = Arc::clone(&global);
         tokio::spawn(async {
             match handler(rw, global).await {
-                Ok(msg) => println!("Connection terminated with node or client: {msg}"),
+                Ok(msg) => println!("Connection handled: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }
         });
