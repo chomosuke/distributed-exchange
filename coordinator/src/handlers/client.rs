@@ -58,7 +58,7 @@ pub async fn handler(
                 .sender
                 .send(Message::CAccount(sender))?;
 
-            let user_id = recver.await?;
+            let user_id = recver.await.map_err(|e| format!("user_id channel closed: {e}"))?;
 
             rw.write_line(&serde_json::to_string(&user_id)?).await?;
 

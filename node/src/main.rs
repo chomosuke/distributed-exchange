@@ -121,7 +121,7 @@ async fn main() {
         let global = Arc::clone(&global);
         tokio::spawn(async {
             match handlers::coordinator::handler(coord_rw, global).await {
-                Ok(msg) => println!("Connection terminated successfully: {msg}"),
+                Ok(msg) => println!("Connection terminated with coordinator: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }
         });
@@ -138,7 +138,7 @@ async fn main() {
         let global = Arc::clone(&global);
         tokio::spawn(async {
             match handler(rw, global).await {
-                Ok(msg) => println!("Connection terminated successfully: {msg}"),
+                Ok(msg) => println!("Connection terminated with node or client: {msg}"),
                 Err(e) => eprintln!("Error: {e}"),
             }
         });

@@ -107,6 +107,7 @@ pub async fn handler(
                 .await?;
 
                 let line = rw.read_line().await?;
+                println!("{id} {line}");
                 sender
                     .send(serde_json::from_str(&line)?)
                     .map_err(|_| line.clone())?;

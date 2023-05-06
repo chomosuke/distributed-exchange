@@ -61,7 +61,7 @@ async fn main() {
         tokio::spawn(async {
             match handler(rw, global).await {
                 Ok(msg) => println!("Connection terminated successfully: {msg}"),
-                Err(e) => eprintln!("Error: {e}"),
+                Err(e) => eprintln!("Error with connection: {e}"),
             }
         });
     }
