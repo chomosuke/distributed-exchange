@@ -4,7 +4,7 @@
 //! file name = 'state'
 //! file content = serde_json::to_string(StateFile)
 
-use crate::{handlers::node::TradeID, matcher::Trade};
+use crate::{handlers::node::{TradeID, Offer}, matcher::Trade};
 use lib::{
     interfaces::{
         AllOrders, BuySell, CentCount, NodeID, OrderReq, OrderType, Quantity, QuantityPrice,
@@ -106,7 +106,10 @@ impl State {
         self.accounts.remove(&id)
     }
 
-    pub async fn process_matches(&mut self, matches: Vec<Trade>) -> GResult<Vec<(NodeID, Trade)>> {
+    pub async fn process_matches(
+        &mut self,
+        matches: Vec<Trade>,
+    ) -> GResult<Vec<(NodeID, Offer)>> {
         let mut offers = Vec::new();
         for trade in matches {
             if trade.buyer_id.node_id == self.id && trade.seller_id.node_id == self.id {
@@ -158,10 +161,12 @@ impl State {
                         trade.buyer_id.clone(),
                     )
                 };
-                local.add_pending(self.next_trade_id, trade.clone());
+                let trade_id = self.next_trade_id;
+                local.add_pending(trade_id, trade.clone());
+                self.next_trade_id += 1;
 
                 // return the offer to be sent
-                offers.push((remote.node_id, trade))
+                offers.push((remote.node_id, Offer { id: trade_id, trade }))
             }
         }
         self.update_file().await?;

@@ -1,13 +1,13 @@
-use super::PendingOffer;
-use crate::{matcher::Trade, Global};
+use crate::Global;
 use lib::{read_writer::ReadWriter, GResult};
+use serde_json::json;
 use std::sync::Arc;
 
-pub async fn handler(
-    trade: Trade,
-    rw: &mut ReadWriter,
-    global: &Arc<Global>,
-    pending_offer: &mut PendingOffer,
-) -> GResult<String> {
-    todo!()
+use super::Offer;
+
+pub async fn handler(offer: Offer, rw: &mut ReadWriter, global: &Arc<Global>) -> GResult<String> {
+    Ok(serde_json::to_string(&json!({
+        "type": "offer",
+        "value": offer,
+    }))?)
 }

@@ -52,7 +52,8 @@ pub async fn handler(
                     },
                     &global,
                 )
-                .await.expect("Process order failed");
+                .await
+                .expect("Process order failed");
             });
             Ok(r#""ok""#.to_owned())
         }
@@ -68,6 +69,7 @@ pub async fn handler(
 pub async fn process_order(order: Order, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl().await;
     let matches = matcher.add_order(order);
+    // Process matches and register pending offer
     let offers = global
         .state
         .write()

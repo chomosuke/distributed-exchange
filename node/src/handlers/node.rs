@@ -4,9 +4,9 @@ mod offer_send;
 mod order;
 
 use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID};
-use lib::{read_writer::ReadWriter, GResult, lock::DeadLockDetect};
+use lib::{lock::DeadLockDetect, read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc};
 use tokio::{select, sync::mpsc};
 
 #[derive(Deserialize)]
@@ -28,28 +28,23 @@ struct State {
 
 #[derive(Debug)]
 pub enum Message {
-    Offer(Trade),
+    Offer(Offer),
 }
 
 pub type TradeID = usize;
 
-#[derive(Serialize, Deserialize)]
-struct Offer {
-    id: TradeID,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Offer {
+    pub id: TradeID,
 
     #[serde(flatten)]
-    trade: Trade,
+    pub trade: Trade,
 }
 
 #[derive(Serialize, Deserialize)]
 struct OfferReply {
     id: TradeID,
     accepted: bool,
-}
-
-pub struct PendingOffer {
-    pending: HashMap<TradeID, Trade>,
-    next_trade_id: TradeID,
 }
 
 pub async fn handler(
@@ -78,25 +73,26 @@ pub async fn handler(
     println!("Connected with Node {id} from addr {addr}");
 
     loop {
-        select! {
+        let res = select! {
             msg = recver.recv() => {
                 let msg = msg.ok_or(format!("Channel for node {addr} closed!"))?;
-                let result = match msg {
-                    // Message::Matched(trade) => offer_send::handler(trade, &mut rw, &global, &mut pending_offer).await?,
-                    _ => return Err(Box::from("")),
-                };
+                match msg {
+                    Message::Offer(offer) => offer_send::handler(offer, &mut rw, &global).await?,
+                }
             },
             line = rw.read_line() => {
                 let line = line?;
                 let (req_type, value) = get_value_type(&line)?;
                 let value = value.ok_or("No value for request")?;
-                let result = match req_type.as_str() {
+                match req_type.as_str() {
                     // "order" => order::handler(&value, &mut rw, &global).await?,
                     // "offer" => offer_recv::handler(&value, &mut rw, &global).await?,
                     // "reply" => offer_reply::handler(&value, &mut rw, &global, &mut pending_offer).await?,
                     req_type => return Err(Box::from(format!("Wrong type {}.", req_type))),
-                };
+                }
             },
-        }
+        };
+        rw.write_line(&res);
+        println!("Sent {res} to node {id}");
     }
 }
