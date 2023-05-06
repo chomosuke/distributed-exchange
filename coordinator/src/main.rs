@@ -53,7 +53,7 @@ async fn main() {
         let rw = match listener.accept().await {
             Ok((socket, _)) => ReadWriter::new(socket),
             Err(e) => {
-                eprintln!("Error receiving connection from a new node: {e}");
+                eprintln!("Error receiving connection from a new connection: {e}");
                 continue;
             }
         };
