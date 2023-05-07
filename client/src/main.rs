@@ -1,5 +1,6 @@
 mod scanner;
 
+use serde_json::{json, de::Read};
 use std::{net::SocketAddr, str::FromStr};
 use structopt::StructOpt;
 
@@ -13,7 +14,7 @@ struct Args {
 }
 
 use lib::{
-    interfaces::{CentCount, Quantity, Ticker, UserID},
+    interfaces::{CentCount, OrderReq, OrderType, Quantity, Ticker, UserID},
     read_writer::ReadWriter,
     GResult,
 };
@@ -71,6 +72,8 @@ async fn main() {
                 // logged in
                 let mut node_rw: ReadWriter = connect_to_server(&new_node_socket).await;
 
+                send_user_id(&mut node_rw, &account_id.as_str()).await;
+
                 loop {
                     print_account_actions(&account_id);
                     match handle_command_logged_in(&mut scanner, &mut node_rw).await {
@@ -109,12 +112,13 @@ fn print_account_actions(account_id: &String) {
     println!("  p                              View current stock prices");
     println!("  d <amount>                     Deposit cash");
     println!("  w <amount>                     Withdraw cash");
-    // println!("  i <ticker> <quantity>          IPO new stock");
+    println!("  i <ticker> <quantity>          IPO: Add new stock to account");
     println!("  !                              Delete your account permanently");
     println!("  q                              Exit the application");
 }
 
 async fn connect_to_server(ip_port: &SocketAddr) -> ReadWriter {
+    println!("Connecting to {ip_port}");
     ReadWriter::new(
         TcpStream::connect(ip_port)
             .await
@@ -202,10 +206,25 @@ fn get_tpq_input(scanner: &mut Scanner) -> GResult<(Ticker, CentCount, Quantity)
     let quantity = scanner.next::<Quantity>();
     if !scanner.is_empty() {
         print_remaining_input(scanner);
-        scanner.clear();
         return Err(Box::from("Unexpected input after quantity: "));
     }
     Ok((ticker, price, quantity))
+}
+
+fn get_tq_input(scanner: &mut Scanner) -> GResult<(Ticker, Quantity)> {
+    if scanner.is_empty() {
+        return Err(Box::from("Invalid input: Expected <ticker> <quantity>"));
+    }
+    let ticker = scanner.next::<Ticker>();
+    if scanner.is_empty() {
+        return Err(Box::from("Invalid input after ticker: Expected <quantity>"));
+    }
+    let quantity = scanner.next::<Quantity>();
+    if !scanner.is_empty() {
+        print_remaining_input(scanner);
+        return Err(Box::from("Unexpected input after quantity: "));
+    }
+    Ok((ticker, quantity))
 }
 
 async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) -> ApplicationFlow {
@@ -215,10 +234,20 @@ async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) ->
             match get_tpq_input(scanner) {
                 Err(e) => {
                     eprintln!("{}", e);
-                    return ApplicationFlow::Continue;
                 }
                 Ok((ticker, price, quantity)) => {
-                    submit_buy(&ticker, &price, &quantity).await;
+                    match submit_order(rw, OrderType::Buy, ticker, price, quantity).await {
+                        Ok(res) => {
+                            if res == "ok" {
+                                println!("Buy order submitted");
+                            } else {
+                                println!("{res}");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("{e}");
+                        }
+                    }
                 }
             }
         }
@@ -227,10 +256,20 @@ async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) ->
             match get_tpq_input(scanner) {
                 Err(e) => {
                     eprintln!("{}", e);
-                    return ApplicationFlow::Continue;
                 }
                 Ok((ticker, price, quantity)) => {
-                    submit_sell(&ticker, &price, &quantity).await;
+                    match submit_order(rw, OrderType::Sell, ticker, price, quantity).await {
+                        Ok(res) => {
+                            if res == "ok" {
+                                println!("Sell order submitted");
+                            } else {
+                                println!("{res}");
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("{e}");
+                        }
+                    }
                 }
             }
         }
@@ -242,6 +281,26 @@ async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) ->
         "a" => { //See current account details
         }
         "p" => { //See current stock prices
+        }
+        "i" => {
+            //IPO
+            match get_tq_input(scanner) {
+                Err(e) => {
+                    eprintln!("{}", e);
+                }
+                Ok((ticker, quantity)) => match ipo(rw, ticker, quantity).await {
+                    Ok(res) => {
+                        if res == "ok" {
+                            println!("IPO submitted");
+                        } else {
+                            println!("{res}");
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("{e}");
+                    }
+                },
+            }
         }
         "q" => {
             // Exit the application
@@ -268,44 +327,58 @@ async fn create_account(ip_port: &SocketAddr) -> GResult<UserID> {
     Ok(userid)
 }
 
-async fn login(ip_port: &SocketAddr, account_id: &str) -> GResult<SocketAddr> {
-    // let sp: Vec<&str> = account_id.split('.').collect();
-    // if sp.len() != 2 {
-    //     return Err(Box::from("Incorrect format for Account ID"));
-    // }
-
-    // let (id, node) = (sp[0], sp[1]);
+async fn send_user_id(rw: &mut ReadWriter, account_id: &str) -> GResult<()> {
     let user_id: UserID = UserID::from_str(account_id).map_err(|_| "Invalid format for User ID")?;
-
-    println!("user_id: {}", user_id);
-
     let message: String =
         serde_json::to_string::<UserID>(&user_id).map_err(|_| "Error serialising User ID")?;
+    rw.write_line(&message).await.map_err(|_| "Error writing User ID to ReadWriter")?;
+    Ok(())
+}
 
-    println!("message: {}", message);
-
+async fn login(ip_port: &SocketAddr, account_id: &str) -> GResult<SocketAddr> {
     let mut rw: ReadWriter = connect_to_server(ip_port).await;
-    rw.write_line(&message).await?;
+
+    send_user_id(&mut rw, account_id).await?;
 
     let node_address = SocketAddr::from_str(&rw.read_line().await?)?;
-
-    println!("node_address: {}", node_address);
-
     Ok(node_address)
 }
 
-async fn submit_buy(ticker: &Ticker, price: &CentCount, quantity: &Quantity) {
-    todo!()
-    // submit_trade()
-}
+// async fn login(ip_port: &SocketAddr, account_id: &str) -> GResult<SocketAddr> {
+//     let user_id: UserID = UserID::from_str(account_id).map_err(|_| "Invalid format for User ID")?;
+//     let message: String =
+//         serde_json::to_string::<UserID>(&user_id).map_err(|_| "Error serialising User ID")?;
 
-async fn submit_sell(ticker: &Ticker, price: &CentCount, quantity: &Quantity) {
-    todo!()
-}
+//     let mut rw: ReadWriter = connect_to_server(ip_port).await;
 
-async fn submit_trade() {
-    //TODO: t: Trade) {
-    todo!()
+//     rw.write_line(&message).await?;
+//     let node_address = SocketAddr::from_str(&rw.read_line().await?)?;
+//     Ok(node_address)
+// }
+
+async fn submit_order(
+    rw: &mut ReadWriter,
+    order_type: OrderType,
+    ticker: Ticker,
+    price: CentCount,
+    quantity: Quantity,
+) -> GResult<String> {
+    let order_req: OrderReq = OrderReq {
+        order_type,
+        ticker,
+        price,
+        quantity,
+    };
+    let msg_json = json!({
+        "type": "C order",
+        "value": order_req
+    });
+    let message = serde_json::to_string(&msg_json).expect("Failed to build trade request");
+
+    rw.write_line(&message).await?;
+
+    let res: String = serde_json::from_str(&rw.read_line().await?)?;
+    Ok(res)
 }
 
 fn cancel_trade() {
@@ -322,6 +395,22 @@ fn print_orders() {
 
 fn deposit_cash() {
     todo!()
+}
+
+async fn ipo(rw: &mut ReadWriter, ticker: Ticker, quantity: Quantity) -> GResult<String> {
+    let msg_json = json!({
+        "type": "C stock",
+        "value": {
+            "ticker_id": ticker,
+            "quantity": quantity
+        }
+    });
+    let message = serde_json::to_string(&msg_json).expect("Failed to build IPO request");
+
+    rw.write_line(&message).await?;
+
+    let res: String = serde_json::from_str(&rw.read_line().await?)?;
+    Ok(res)
 }
 
 fn withdraw_cash() {
