@@ -9,7 +9,6 @@ use std::sync::Arc;
 pub async fn handler(req: Value, _rw: &mut ReadWriter, global: &Arc<Global>) -> GResult<()> {
     let OrderUpdate { deduct, order } = serde_json::from_value(req)?;
     if deduct {
-        println!("deduct order recieved {:?}", order.clone());
         global.matcher.write().dl("o74").await.deduct_order(order);
     } else {
         add_order_to_matcher_and_process(order, global);

@@ -389,3 +389,13 @@ TODO
   - need to broadcast to everyone. TICK
 - Order deducted.
   - need to broadcast. TICK
+
+
+
+add order to matcher: (can come from remote or local)
+- Matcher matches and broadcast all the other local order deducted (apart from the new one).
+  - NEVER implicitly deduct remote orders.
+  - If new order is local, broadcast the remaining new order.
+- Offers are sent out.
+- Offer received and accepted, broadcast local order deducted TO EVERYONE.
+- Offer reply rejected, treat it as newly created order.

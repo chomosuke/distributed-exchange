@@ -52,28 +52,28 @@ async fn main() -> GResult<()> {
         .await?;
     assert_eq!(users[1].read_line().await?, r#""ok""#);
 
-    sleep(Duration::from_millis(50)).await;
+    sleep(Duration::from_millis(1000)).await;
 
-    // // tests
-    // println!("User0:");
-    // users[0].write_line(r#"{ "type": "R balance" }"#).await?;
-    // println!("{}", users[0].read_line().await?);
-    // users[0].write_line(r#"{ "type": "R stock" }"#).await?;
-    // println!("{}", users[0].read_line().await?);
-    // users[0].write_line(r#"{ "type": "R order" }"#).await?;
-    // println!("{}", users[0].read_line().await?);
-    // users[0].write_line(r#"{ "type": "R market" }"#).await?;
-    // println!("{}", users[0].read_line().await?);
-    // println!("User1:");
-    // users[1].write_line(r#"{ "type": "R balance" }"#).await?;
-    // println!("{}", users[1].read_line().await?);
-    // users[1].write_line(r#"{ "type": "R stock" }"#).await?;
-    // println!("{}", users[1].read_line().await?);
-    // users[1].write_line(r#"{ "type": "R order" }"#).await?;
-    // println!("{}", users[1].read_line().await?);
-    // users[1].write_line(r#"{ "type": "R market" }"#).await?;
-    // println!("{}", users[1].read_line().await?);
-    //
+    // tests
+    println!("User0:");
+    users[0].write_line(r#"{ "type": "R balance" }"#).await?;
+    println!("{}", users[0].read_line().await?);
+    users[0].write_line(r#"{ "type": "R stock" }"#).await?;
+    println!("{}", users[0].read_line().await?);
+    users[0].write_line(r#"{ "type": "R order" }"#).await?;
+    println!("{}", users[0].read_line().await?);
+    users[0].write_line(r#"{ "type": "R market" }"#).await?;
+    println!("{}", users[0].read_line().await?);
+    println!("User1:");
+    users[1].write_line(r#"{ "type": "R balance" }"#).await?;
+    println!("{}", users[1].read_line().await?);
+    users[1].write_line(r#"{ "type": "R stock" }"#).await?;
+    println!("{}", users[1].read_line().await?);
+    users[1].write_line(r#"{ "type": "R order" }"#).await?;
+    println!("{}", users[1].read_line().await?);
+    users[1].write_line(r#"{ "type": "R market" }"#).await?;
+    println!("{}", users[1].read_line().await?);
+
     // // basic same node trade
     // users[0]
     //     .write_line(r#"{ "type": "C order", "value": { "order_type": "buy", "ticker": "AMD", "price": 15, "quantity": 50 } }"#)

@@ -68,10 +68,12 @@ impl Matcher {
                 }
             }
         }
+        println!("{:?}", self.to_deduct);
         AllOrders(all_orders)
     }
 
     pub fn deduct_order(&mut self, order: Order) {
+        println!("deduct {:?}", order);
         if let Err(remaining) = self.try_deduct_order(order.clone()) {
             let Order {
                 order_type,
@@ -135,7 +137,9 @@ impl Matcher {
             user_id,
             quantity: mut to_deduct,
             price,
-        } = order;
+        } = order.clone();
+
+        println!("Add {order:?}");
 
         // first match it with to_deduct
         let current_to_deduct = self
@@ -144,7 +148,10 @@ impl Matcher {
             .or_default()
             .entry(ticker.clone())
             .or_default()
-            .entry(price).or_default().entry(user_id.clone()).or_default();
+            .entry(price)
+            .or_default()
+            .entry(user_id.clone())
+            .or_default();
         let deductable = to_deduct.min(*current_to_deduct);
         to_deduct -= deductable;
         *current_to_deduct -= deductable;
@@ -184,13 +191,13 @@ impl Matcher {
                     sell_price,
                 };
 
-                *quantity -= new_trade.quantity;
                 to_deduct -= new_trade.quantity;
 
                 proposed_trades.push(new_trade.clone());
 
                 // report deducted local order
                 if other_user.node_id == self.this_id {
+                    *quantity -= new_trade.quantity;
                     local_order_deducted.push(Order {
                         order_type: match order_type {
                             OrderType::Buy => OrderType::Sell,

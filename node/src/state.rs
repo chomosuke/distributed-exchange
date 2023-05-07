@@ -464,6 +464,12 @@ impl Account {
             sell_price,
         } = trade;
 
+        let order_price = if buyer_id == self.id {
+            buy_price
+        } else {
+            sell_price
+        };
+
         // check if enough orders left
         let current_orders = if buyer_id == self.id {
             &mut self.buys
@@ -473,11 +479,7 @@ impl Account {
         let current_order_quantity = current_orders
             .entry(ticker.clone())
             .or_default()
-            .entry(if buyer_id == self.id {
-                buy_price
-            } else {
-                sell_price
-            })
+            .entry(order_price)
             .or_default();
         if *current_order_quantity < quantity {
             println!("rejected order: {quantity} {current_order_quantity}");
@@ -517,7 +519,7 @@ impl Account {
             },
             ticker,
             user_id: self.id.clone(),
-            price,
+            price: order_price,
         }))
     }
 
