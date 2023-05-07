@@ -323,6 +323,22 @@ impl Account {
         Ok(deducted)
     }
 
+    pub fn get_buy_order_amount(&self) -> CentCount {
+        self.buys
+            .iter()
+            .map(|(ticker, orders)| {
+                orders
+                    .iter()
+                    .map(|(price, quantity)| price * quantity)
+                    .sum::<u64>()
+            })
+            .sum()
+    }
+
+    pub fn get_sell_order_quantity(&self, ticker: Ticker) -> Quantity {
+        self.sells.entry(ticker).or_default().iter().map(|(_, quantity)| quantity).sum()
+    }
+
     /// Attempt to add order to the account
     pub async fn add_order(
         &mut self,
