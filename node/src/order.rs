@@ -1,26 +1,41 @@
-use crate::{handlers::node::Message, matcher::Order, Global};
+use crate::{handlers::node::Message, matcher::Order, Global, Node};
 use lib::{lock::DeadLockDetect, GResult};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 #[derive(PartialEq)]
 pub enum OrderOrigin {
-    Incoming,
-    Outgoing,
+    Local,
+    Remote,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct OrderUpdate {
+    pub deduct: bool,
+
+    #[serde(flatten)]
+    pub order: Order,
 }
 
 /// add order to the matcher and process the matches
 pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl("pr12").await;
-    let (remaining_order, matches) = matcher.add_order(order);
+    let (remaining_order, matches, local_order_deducted) = matcher.add_order(order);
 
-    if remaining_order.quantity > 0 && origin == OrderOrigin::Outgoing {
+    for order in local_order_deducted {
+        // need to broadcast
+        broadcast_deduct_order(order, global.others.read().await.values().collect()).await?;
+    }
+
+    if remaining_order.quantity > 0 && origin == OrderOrigin::Remote {
         // Send the order
         for (_, node) in global.others.read().dl("pr17").await.iter() {
             match node {
                 crate::Node::DisConnected(addr) => todo!("{addr}"),
-                crate::Node::Connected { sender } => {
-                    sender.send(Message::Order(remaining_order.clone()))?
-                }
+                crate::Node::Connected { sender } => sender.send(Message::Order(OrderUpdate {
+                    deduct: false,
+                    order: remaining_order.clone(),
+                }))?,
             }
         }
     }
@@ -52,4 +67,26 @@ pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Globa
     Ok(())
 }
 
+// inform all matcher than order has been removed
+pub async fn matcher_deduct_order(order: Order, global: &Arc<Global>) -> GResult<()> {
+    global
+        .matcher
+        .write()
+        .dl("o74")
+        .await
+        .deduct_order(order.clone());
+    broadcast_deduct_order(order, global.others.read().await.values().collect()).await
+}
 
+pub async fn broadcast_deduct_order(order: Order, target_nodes: Vec<&Node>) -> GResult<()> {
+    for node in target_nodes {
+        match node {
+            crate::Node::DisConnected(addr) => todo!("{addr}"),
+            crate::Node::Connected { sender } => sender.send(Message::Order(OrderUpdate {
+                deduct: true,
+                order: order.clone(),
+            }))?,
+        }
+    }
+    Ok(())
+}

@@ -4,7 +4,7 @@ mod offer_send;
 mod order_recv;
 mod order_send;
 
-use crate::{handlers::get_value_type, matcher::{Trade, Order}, Global, Node, NodeID};
+use crate::{handlers::get_value_type, matcher::Trade, Global, Node, NodeID, order::OrderUpdate};
 use lib::{lock::DeadLockDetect, read_writer::ReadWriter, GResult};
 use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
@@ -24,7 +24,7 @@ impl FromStr for FirstLine {
 #[derive(Debug)]
 pub enum Message {
     Offer(Offer),
-    Order(Order),
+    Order(OrderUpdate),
 }
 
 pub type TradeID = usize;

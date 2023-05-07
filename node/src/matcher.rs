@@ -33,6 +33,8 @@ pub struct Matcher {
     this_id: NodeID,
     buys: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
     sells: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
+    #[allow(clippy::type_complexity)]
+    to_deduct: HashMap<OrderType, HashMap<Ticker, HashMap<CentCount, HashMap<usize, Quantity>>>>,
 }
 
 impl Matcher {
@@ -41,6 +43,7 @@ impl Matcher {
             this_id,
             buys: HashMap::new(),
             sells: HashMap::new(),
+            to_deduct: HashMap::new(),
         }
     }
 
@@ -66,7 +69,30 @@ impl Matcher {
         AllOrders(all_orders)
     }
 
-    pub fn deduct_order(
+    pub fn deduct_order(&mut self, order: Order) {
+        if let Err(remaining) = self.try_deduct_order(order.clone()) {
+            let Order {
+                order_type,
+                ticker,
+                user_id,
+                price,
+                ..
+            } = order;
+            *self
+                .to_deduct
+                .entry(order_type)
+                .or_default()
+                .entry(ticker)
+                .or_default()
+                .entry(price)
+                .or_default()
+                .entry(user_id.id)
+                .or_default() += remaining;
+        }
+    }
+
+    /// try to deduct order, if failed return remaining quantity to be deducted
+    pub fn try_deduct_order(
         &mut self,
         Order {
             order_type,
@@ -109,7 +135,9 @@ impl Matcher {
             quantity: mut to_deduct,
             price,
         }: Order,
-    ) -> (Order, Vec<Trade>) {
+    ) -> (Order, Vec<Trade>, Vec<Order>) {
+        let mut local_order_deducted: Vec<Order> = Vec::new();
+
         let existing_orders = match order_type {
             OrderType::Buy => &mut self.sells,
             OrderType::Sell => &mut self.buys,
@@ -144,7 +172,21 @@ impl Matcher {
                 *quantity -= new_trade.quantity;
                 to_deduct -= new_trade.quantity;
 
-                proposed_trades.push(new_trade);
+                proposed_trades.push(new_trade.clone());
+
+                // report deducted local order
+                if other_user.node_id == self.this_id {
+                    local_order_deducted.push(Order {
+                        order_type: match order_type {
+                            OrderType::Buy => OrderType::Sell,
+                            OrderType::Sell => OrderType::Buy,
+                        },
+                        ticker: new_trade.ticker.clone(),
+                        quantity: new_trade.quantity,
+                        user_id: other_user.clone(),
+                        price: new_trade.price,
+                    });
+                }
 
                 if to_deduct == 0 {
                     break 'outer;
@@ -180,6 +222,6 @@ impl Matcher {
             .or_default()
             .push_back((remaining_order.user_id.clone(), remaining_order.quantity));
         }
-        (remaining_order, proposed_trades)
+        (remaining_order, proposed_trades, local_order_deducted)
     }
 }

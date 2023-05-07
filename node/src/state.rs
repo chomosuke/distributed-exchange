@@ -6,7 +6,7 @@
 
 use crate::{
     handlers::node::{Offer, TradeID},
-    matcher::Trade,
+    matcher::{Order, Trade},
 };
 use lib::{
     interfaces::{
@@ -431,7 +431,8 @@ impl Account {
     }
 
     /// accept or reject a trade offer, modifying to account in case accepted
-    pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<bool> {
+    /// Return order deducted if accepted
+    pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<Option<Order>> {
         let Trade {
             quantity,
             price,
@@ -452,29 +453,40 @@ impl Account {
             .entry(price)
             .or_default();
         if quantity <= *current_order_quantity {
-            return Ok(false);
+            return Ok(None);
         }
 
         if buyer_id == self.id {
             let to_deduct = quantity * price;
             if self.balance > to_deduct {
-                return Ok(false);
+                return Ok(None);
             }
             // commit
             self.balance -= to_deduct;
         } else if seller_id == self.id {
             let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
             if *current_quantity < quantity {
-                return Ok(false);
+                return Ok(None);
             }
             // commit
             *current_quantity -= quantity;
         } else {
             panic!("This trade doesn't belong to this user");
         }
+
         *current_order_quantity -= quantity;
         self.update_file().await?;
-        Ok(true)
+        Ok(Some(Order {
+            quantity,
+            order_type: if buyer_id == self.id {
+                OrderType::Buy
+            } else {
+                OrderType::Sell
+            },
+            ticker,
+            user_id: self.id.clone(),
+            price,
+        }))
     }
 
     /// this function assume the trade will succeed

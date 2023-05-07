@@ -48,7 +48,7 @@ impl FromStr for UserID {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OrderType {
     #[serde(rename = "buy")]
     Buy,

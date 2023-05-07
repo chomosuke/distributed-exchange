@@ -1,7 +1,7 @@
 use super::{Crud, Req, UserID};
 use crate::{
     matcher::Order,
-    order::{process_order, OrderOrigin},
+    order::{matcher_deduct_order, process_order, OrderOrigin},
     Global,
 };
 use lib::{interfaces::OrderReq, lock::DeadLockDetect, GResult};
@@ -59,7 +59,7 @@ pub async fn handler(
                         quantity,
                         price,
                     },
-                    OrderOrigin::Outgoing,
+                    OrderOrigin::Remote,
                     &global,
                 )
                 .await
@@ -75,13 +75,23 @@ pub async fn handler(
             let order: OrderReq = serde_json::from_value(value.ok_or("Bad value")?)?;
             let mut account = account.write().dl("o71").await;
             let quantity = account.deduct_order(order.clone()).await?;
-            let OrderReq { order_type, ticker, price, .. } = order;
+            let OrderReq {
+                order_type,
+                ticker,
+                price,
+                ..
+            } = order;
 
-
-            global.matcher.write().dl("o74").await.deduct_order(Order {
-                order_type, ticker, user_id: user_id.clone(), price, quantity,
-            }).expect("Matcher account out of sync!");
-
+            matcher_deduct_order(
+                Order {
+                    order_type,
+                    ticker,
+                    user_id: user_id.clone(),
+                    price,
+                    quantity,
+                },
+                global,
+            ).await?;
 
             Ok(quantity.to_string())
         }

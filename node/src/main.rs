@@ -27,7 +27,7 @@ struct Args {
     persistent_dir: String,
 }
 
-enum Node {
+pub enum Node {
     DisConnected(SocketAddr),
     Connected {
         sender: UnboundedSender<handlers::node::Message>,

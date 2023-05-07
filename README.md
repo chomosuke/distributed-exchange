@@ -114,6 +114,7 @@ Message format one line per json message:
 {
   "type": "order",
   "value": {
+    "deduct": false,
     "order_type": "buy|sell",
     "ticker": "Ticker",
     "user_id": "UserID",
@@ -375,3 +376,14 @@ TODO
 - Matcher: one on each node, responsible for matching order where one of the seller or buyer belong to this node.
 - Accounts: source of truth, responsible for recording orders, balance, portfolio and stocks.
 - There can not be more order than balance / stock in portfolio.
+
+### Matcher syncing
+- local order created.
+  - matched with remote -> no need to broadcast.
+  - matched with local -> broadcast to everyone. TICK
+- offer accepted.
+  - need to broadcast to everyone except the offer sender. TICK
+- local order matched with remote.
+  - need to broadcast to everyone. TICK
+- Order deducted.
+  - need to broadcast. TICK
