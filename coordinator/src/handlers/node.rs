@@ -52,6 +52,7 @@ pub async fn handler(
         "others": node_records.get_records()
             .iter()
             .enumerate()
+            .filter(|&(i, _)| i != id)
             .map(|(i, r)| json!({"id": i, "addr": r.address}))
             .collect::<Vec<_>>(),
     }))?;
