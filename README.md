@@ -133,7 +133,9 @@ Message format one line per json message:
     "buyer_id": "UserID",
     "seller_id": "UserID",
     "quantity": 100,
-    "price": 1050
+    "price": 1050,
+    "buy_price": 1050,
+    "sell_price": 1000
   }
 }
 ```

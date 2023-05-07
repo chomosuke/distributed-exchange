@@ -118,13 +118,15 @@ impl State {
         let mut offers = Vec::new();
         for trade in matches {
             if trade.buyer_id.node_id == self.id && trade.seller_id.node_id == self.id {
-                // Both locol, perform trade NOW
+                // Both local, perform trade NOW
                 let Trade {
                     quantity,
                     price,
                     ticker,
                     buyer_id,
                     seller_id,
+                    buy_price,
+                    sell_price,
                 } = trade;
                 let buyer = &mut self
                     .accounts
@@ -149,6 +151,25 @@ impl State {
                 let new_seller_balance = seller.get_balance() + quantity * price;
                 seller.set_balance(new_seller_balance).await?;
                 buyer.add_stock(ticker.clone(), quantity).await?;
+
+                let deducted = seller
+                    .deduct_order(OrderReq {
+                        order_type: OrderType::Sell,
+                        ticker: ticker.clone(),
+                        price: sell_price,
+                        quantity,
+                    })
+                    .await?;
+                assert_eq!(deducted, quantity);
+                let deducted = buyer
+                    .deduct_order(OrderReq {
+                        order_type: OrderType::Buy,
+                        ticker: ticker.clone(),
+                        price: buy_price,
+                        quantity,
+                    })
+                    .await?;
+                assert_eq!(deducted, quantity);
             } else {
                 // One of them remote
                 let (mut local, remote) = if trade.buyer_id.node_id == self.id {
@@ -317,7 +338,6 @@ impl Account {
     }
 
     pub fn get_orders(&self) -> AllOrders {
-        // TODO: Add comment to make this more readable
         let mut all_orders = HashMap::new();
         let self_buys_sells = [&self.buys, &self.sells];
         for (is_buy_sell, orders) in self_buys_sells.into_iter().enumerate() {
@@ -439,6 +459,8 @@ impl Account {
             ticker,
             buyer_id,
             seller_id,
+            buy_price,
+            sell_price,
         } = trade;
 
         // check if enough orders left
@@ -450,26 +472,35 @@ impl Account {
         let current_order_quantity = current_orders
             .entry(ticker.clone())
             .or_default()
-            .entry(price)
+            .entry(if buyer_id == self.id {
+                buy_price
+            } else {
+                sell_price
+            })
             .or_default();
-        if quantity <= *current_order_quantity {
+        if *current_order_quantity < quantity {
+            println!("rejected order: {quantity} {current_order_quantity}");
             return Ok(None);
         }
 
         if buyer_id == self.id {
             let to_deduct = quantity * price;
-            if self.balance > to_deduct {
+            if self.balance < to_deduct {
+                println!("rejected quantity: {} {to_deduct}", self.balance);
                 return Ok(None);
             }
             // commit
             self.balance -= to_deduct;
+            *self.portfolio.entry(ticker.clone()).or_default() += quantity;
         } else if seller_id == self.id {
             let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
             if *current_quantity < quantity {
+                println!("rejected stock: {quantity} {current_quantity}");
                 return Ok(None);
             }
             // commit
             *current_quantity -= quantity;
+            self.balance += quantity * price;
         } else {
             panic!("This trade doesn't belong to this user");
         }
@@ -502,6 +533,8 @@ impl Account {
             ticker,
             buyer_id,
             seller_id,
+            buy_price,
+            sell_price,
         } = trade.clone();
         if buyer_id == self.id {
             let to_deduct = quantity * price;
@@ -530,7 +563,11 @@ impl Account {
         let current_order_quantity = current_orders
             .entry(ticker)
             .or_default()
-            .entry(price)
+            .entry(if buyer_id == self.id {
+                buy_price
+            } else {
+                sell_price
+            })
             .or_default();
         assert!(
             quantity <= *current_order_quantity,
@@ -548,6 +585,7 @@ impl Account {
             ticker,
             buyer_id,
             seller_id,
+            ..
         } = self.pending.remove(&trade_id).expect("Invalid trade_id");
         if buyer_id == self.id {
             let current_quantity = self.portfolio.entry(ticker).or_default();
@@ -567,15 +605,35 @@ impl Account {
             ticker,
             buyer_id,
             seller_id,
+            buy_price,
+            sell_price,
         } = self.pending.remove(&trade_id).expect("Invalid trade_id");
         if buyer_id == self.id {
             self.balance += quantity * price;
         } else if seller_id == self.id {
-            let current_quantity = self.portfolio.entry(ticker).or_default();
+            let current_quantity = self.portfolio.entry(ticker.clone()).or_default();
             *current_quantity += quantity;
         } else {
             panic!("This trade doesn't belong to this user");
         }
+
+        // add orders back
+        let current_orders = if buyer_id == self.id {
+            &mut self.buys
+        } else {
+            &mut self.sells
+        };
+        let current_order_quantity = current_orders
+            .entry(ticker)
+            .or_default()
+            .entry(if buyer_id == self.id {
+                buy_price
+            } else {
+                sell_price
+            })
+            .or_default();
+        *current_order_quantity += quantity;
+
         self.update_file().await
     }
 }

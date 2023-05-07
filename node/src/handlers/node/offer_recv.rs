@@ -41,6 +41,12 @@ pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> G
 
     if let Some(order) = order_deducted {
         // update the matcher to remove the order
+        global
+            .matcher
+            .write()
+            .dl("ofrc47")
+            .await
+            .deduct_order(order.clone());
         broadcast_deduct_order(
             order,
             global

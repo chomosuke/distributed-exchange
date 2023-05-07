@@ -27,6 +27,8 @@ pub struct Trade {
     pub ticker: Ticker,
     pub buyer_id: UserID,
     pub seller_id: UserID,
+    pub buy_price: CentCount,
+    pub sell_price: CentCount,
 }
 
 pub struct Matcher {
@@ -126,16 +128,14 @@ impl Matcher {
     }
 
     /// create matches and add and return the remaining order
-    pub fn add_order(
-        &mut self,
-        Order {
+    pub fn add_order(&mut self, order: Order) -> (Order, Vec<Trade>, Vec<Order>) {
+        let Order {
             order_type,
             ticker,
             user_id,
             quantity: mut to_deduct,
             price,
-        }: Order,
-    ) -> (Order, Vec<Trade>, Vec<Order>) {
+        } = order;
         let mut local_order_deducted: Vec<Order> = Vec::new();
 
         let existing_orders = match order_type {
@@ -157,9 +157,9 @@ impl Matcher {
             for (other_user, quantity) in existing_orders.iter_mut().filter(|(other_user, _)| {
                 user_id.node_id == self.this_id || other_user.node_id == self.this_id
             }) {
-                let (buyer_id, seller_id) = match order_type {
-                    OrderType::Buy => (user_id.clone(), other_user.clone()),
-                    OrderType::Sell => (other_user.clone(), user_id.clone()),
+                let (buyer_id, seller_id, buy_price, sell_price) = match order_type {
+                    OrderType::Buy => (user_id.clone(), other_user.clone(), price, *other_price),
+                    OrderType::Sell => (other_user.clone(), user_id.clone(), *other_price, price),
                 };
                 let new_trade: Trade = Trade {
                     quantity: min(to_deduct, *quantity),
@@ -167,6 +167,8 @@ impl Matcher {
                     ticker: ticker.clone(),
                     buyer_id,
                     seller_id,
+                    buy_price,
+                    sell_price,
                 };
 
                 *quantity -= new_trade.quantity;

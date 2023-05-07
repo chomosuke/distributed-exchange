@@ -1,8 +1,8 @@
 {"id":0,"node_id":0}
 { "type": "U balance", "value": 10000 }
 { "type": "C stock", "value": { "ticker_id": "AMD", "quantity": 1000 } }
-{ "type": "C order", "value": { "order_type": "sell", "ticker": "AMD", "price": 12, "quantity": 100 } }
 { "type": "C order", "value": { "order_type": "buy", "ticker": "Intel", "price": 15, "quantity": 100 } }
+{ "type": "C order", "value": { "order_type": "sell", "ticker": "AMD", "price": 12, "quantity": 100 } }
 
 {"id":0,"node_id":1}
 { "type": "U balance", "value": 10000 }
@@ -19,3 +19,5 @@
 TODO broadcast trade confirmed to every matcher
 
 { "type": "U balance", "value": 1000 }
+
+"C account"
