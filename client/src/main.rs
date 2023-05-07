@@ -263,7 +263,7 @@ async fn handle_command_logged_in(scanner: &mut Scanner, rw: &mut ReadWriter) ->
 
 async fn create_account(ip_port: &SocketAddr) -> GResult<UserID> {
     let mut rw: ReadWriter = connect_to_server(ip_port).await;
-    rw.write_line(r#""C Account""#).await?;
+    rw.write_line(r#""C account""#).await?;
     let userid: UserID = serde_json::from_str(&rw.read_line().await?)?;
     Ok(userid)
 }

@@ -16,7 +16,7 @@ impl FromStr for FirstLine {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(user_id) = serde_json::from_str(s) {
             Ok(FirstLine::FindNode(user_id))
-        } else if s == "\"C Account\"" {
+        } else if s == "\"C account\"" {
             Ok(FirstLine::CAccount)
         } else {
             Err("Did not match first line for client".into())

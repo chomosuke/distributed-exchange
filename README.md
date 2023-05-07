@@ -216,7 +216,7 @@ Message format one line per json message:
   - Establish connection
     req:
   ```json
-  "C Account"
+  "C account"
   ```
   res:
   ```json
