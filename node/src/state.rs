@@ -248,12 +248,16 @@ impl Account {
     }
 
     async fn update_file(&self) -> GResult<()> {
-        fs::write(&self.path, &serde_json::to_string(self)?).await?;
+        fs::write(&self.path, &serde_json::to_string(self)?)
+            .await
+            .expect(&self.path);
         Ok(())
     }
 
     async fn restore(path: String) -> Option<Self> {
-        serde_json::from_str(&read_to_string(path).ok()?).ok()?
+        let mut s: Self = serde_json::from_str(&read_to_string(path.clone()).ok()?).ok()?;
+        s.path = path;
+        Some(s)
     }
 
     pub async fn delete(&mut self) -> Result<(), String> {
