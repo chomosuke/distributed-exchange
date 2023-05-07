@@ -21,7 +21,7 @@ pub struct QuantityPrice {
     pub price: u64,
 }
 
-#[derive(PartialEq, Eq, Debug, Clone, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Hash, Debug, Clone, Serialize, Deserialize)]
 pub struct UserID {
     pub id: usize,
     pub node_id: NodeID,

@@ -3,12 +3,6 @@ use lib::{lock::DeadLockDetect, GResult};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(PartialEq)]
-pub enum OrderOrigin {
-    Local,
-    Remote,
-}
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct OrderUpdate {
     pub deduct: bool,
@@ -17,17 +11,32 @@ pub struct OrderUpdate {
     pub order: Order,
 }
 
+pub fn add_order_to_matcher_and_process(order: Order, global: &Arc<Global>) {
+    let global = Arc::clone(global);
+    tokio::spawn(async move {
+        _add_order_to_matcher_and_process(order, &global)
+            .await
+            .expect("Process order failed");
+    });
+}
+
 /// add order to the matcher and process the matches
-pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Global>) -> GResult<()> {
+async fn _add_order_to_matcher_and_process(order: Order, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl("pr12").await;
     let (remaining_order, matches, local_order_deducted) = matcher.add_order(order);
 
     for order in local_order_deducted {
         // need to broadcast
-        broadcast_deduct_order(order, global.others.read().await.values().collect()).await?;
+        broadcast_deduct_order(
+            order,
+            global.others.read().dl("o21").await.values().collect(),
+        )
+        .await?;
     }
 
-    if remaining_order.quantity > 0 && origin == OrderOrigin::Remote {
+    if remaining_order.user_id.node_id == global.state.read().dl("o24").await.get_id()
+        && remaining_order.quantity > 0
+    {
         // Send the order
         for (_, node) in global.others.read().dl("pr17").await.iter() {
             match node {

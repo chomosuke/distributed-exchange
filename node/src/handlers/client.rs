@@ -113,7 +113,6 @@ pub async fn handler(
             Target::Stock => stock::handler(&user_id, req, &global).await?,
         };
         rw.write_line(&res).await?;
-        println!("repsonded request {line} from client {user_id:?} with {res:?}");
         if matches!(target, Target::Account) && matches!(crud, Crud::Delete) && res == "\"ok\"" {
             return Ok(format!(
                 "Connection with user {user_id:?} terminated as account deleted."

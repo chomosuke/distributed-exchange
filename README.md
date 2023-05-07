@@ -379,13 +379,13 @@ TODO
 - Accounts: source of truth, responsible for recording orders, balance, portfolio and stocks.
 - There can not be more order than balance / stock in portfolio.
 
-### Matcher syncing
-- local order created.
-  - matched with remote -> no need to broadcast.
-  - matched with local -> broadcast to everyone. TICK
-- offer accepted.
-  - need to broadcast to everyone except the offer sender. TICK
-- local order matched with remote.
+### Matcher syncing broadcasting local order deduction
+- local matched with remote -> no need to broadcast.
+- local matched with local -> broadcast to everyone. TICK
+- remote matched with local. -> need to broadcast to everyone. TICK
+- offer accept sent.
+  - need to broadcast to everyone. TICK
+- offer deny received.
   - need to broadcast to everyone. TICK
 - Order deducted.
   - need to broadcast. TICK

@@ -1,7 +1,7 @@
 use super::{Crud, Req, UserID};
 use crate::{
     matcher::Order,
-    order::{matcher_deduct_order, process_order, OrderOrigin},
+    order::{add_order_to_matcher_and_process, matcher_deduct_order},
     Global,
 };
 use lib::{interfaces::OrderReq, lock::DeadLockDetect, GResult};
@@ -50,21 +50,16 @@ pub async fn handler(
 
             let global = Arc::clone(global);
             let user_id = user_id.clone();
-            tokio::spawn(async move {
-                process_order(
-                    Order {
-                        order_type,
-                        ticker,
-                        user_id,
-                        quantity,
-                        price,
-                    },
-                    OrderOrigin::Remote,
-                    &global,
-                )
-                .await
-                .expect("Process order failed");
-            });
+            add_order_to_matcher_and_process(
+                Order {
+                    order_type,
+                    ticker,
+                    user_id,
+                    quantity,
+                    price,
+                },
+                &global,
+            );
             Ok(r#""ok""#.to_owned())
         }
         Crud::Read => {
@@ -91,7 +86,8 @@ pub async fn handler(
                     quantity,
                 },
                 global,
-            ).await?;
+            )
+            .await?;
 
             Ok(quantity.to_string())
         }

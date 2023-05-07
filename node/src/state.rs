@@ -223,19 +223,20 @@ impl State {
         self.update_file().await
     }
 
-    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<Order> {
         let user_id = self
             .pending_to_user
             .remove(&trade_id)
             .expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account
+        let order = account
             .write()
             .dl("st200")
             .await
             .abort_pending(trade_id)
             .await?;
-        self.update_file().await
+        self.update_file().await?;
+        Ok(order)
     }
 }
 
@@ -598,7 +599,7 @@ impl Account {
         self.update_file().await
     }
 
-    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
+    pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<Order> {
         let Trade {
             quantity,
             price,
@@ -618,13 +619,18 @@ impl Account {
         }
 
         // add orders back
+        let (order_type, price) = if buyer_id == self.id {
+            (OrderType::Buy, buy_price)
+        } else {
+            (OrderType::Sell, sell_price)
+        };
         let current_orders = if buyer_id == self.id {
             &mut self.buys
         } else {
             &mut self.sells
         };
         let current_order_quantity = current_orders
-            .entry(ticker)
+            .entry(ticker.clone())
             .or_default()
             .entry(if buyer_id == self.id {
                 buy_price
@@ -634,6 +640,13 @@ impl Account {
             .or_default();
         *current_order_quantity += quantity;
 
-        self.update_file().await
+        self.update_file().await?;
+        Ok(Order {
+            price,
+            user_id: self.id.clone(),
+            order_type,
+            quantity,
+            ticker,
+        })
     }
 }

@@ -36,7 +36,7 @@ pub struct Matcher {
     buys: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
     sells: HashMap<Ticker, BTreeMap<CentCount, VecDeque<(UserID, Quantity)>>>,
     #[allow(clippy::type_complexity)]
-    to_deduct: HashMap<OrderType, HashMap<Ticker, HashMap<CentCount, HashMap<usize, Quantity>>>>,
+    to_deduct: HashMap<OrderType, HashMap<Ticker, HashMap<CentCount, HashMap<UserID, Quantity>>>>,
 }
 
 impl Matcher {
@@ -88,7 +88,7 @@ impl Matcher {
                 .or_default()
                 .entry(price)
                 .or_default()
-                .entry(user_id.id)
+                .entry(user_id)
                 .or_default() += remaining;
         }
     }
@@ -136,6 +136,19 @@ impl Matcher {
             quantity: mut to_deduct,
             price,
         } = order;
+
+        // first match it with to_deduct
+        let current_to_deduct = self
+            .to_deduct
+            .entry(order_type)
+            .or_default()
+            .entry(ticker.clone())
+            .or_default()
+            .entry(price).or_default().entry(user_id.clone()).or_default();
+        let deductable = to_deduct.min(*current_to_deduct);
+        to_deduct -= deductable;
+        *current_to_deduct -= deductable;
+
         let mut local_order_deducted: Vec<Order> = Vec::new();
 
         let existing_orders = match order_type {

@@ -37,6 +37,8 @@ pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> G
         .process_incoming_offer(trade)
         .await?;
 
+    drop(state);
+
     let accepted = order_deducted.is_some();
 
     if let Some(order) = order_deducted {
