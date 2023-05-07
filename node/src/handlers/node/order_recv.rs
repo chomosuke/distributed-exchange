@@ -11,6 +11,7 @@ pub async fn handler(req: Value, _rw: &mut ReadWriter, global: &Arc<Global>) -> 
     let global = Arc::clone(global);
     tokio::spawn(async move {
         if deduct {
+            println!("deduct order recieved {:?}", order.clone());
             global.matcher.write().dl("o74").await.deduct_order(order);
         } else {
             process_order(order, OrderOrigin::Local, &global)

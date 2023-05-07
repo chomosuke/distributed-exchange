@@ -167,8 +167,8 @@ impl State {
                     )
                 };
                 let trade_id = self.next_trade_id;
-                local.add_pending(trade_id, trade.clone()).await?;
                 self.next_trade_id += 1;
+                local.add_pending(trade_id, trade.clone()).await?;
 
                 // record which TradeID belong to which user
                 self.pending_to_user.insert(trade_id, local.id.id);
@@ -502,7 +502,7 @@ impl Account {
             ticker,
             buyer_id,
             seller_id,
-        } = trade;
+        } = trade.clone();
         if buyer_id == self.id {
             let to_deduct = quantity * price;
             assert!(
@@ -534,7 +534,7 @@ impl Account {
             .or_default();
         assert!(
             quantity <= *current_order_quantity,
-            "Invalid trade, not enough quantity of the stock"
+            "Invalid trade, not enough order {trade:?}"
         );
         *current_order_quantity -= quantity;
 
