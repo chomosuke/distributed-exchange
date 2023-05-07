@@ -1,6 +1,6 @@
 mod scanner;
 
-use serde_json::{de::Read, json, Map, Value};
+use serde_json::{json, Map, Value};
 use std::{net::SocketAddr, str::FromStr};
 use structopt::StructOpt;
 
