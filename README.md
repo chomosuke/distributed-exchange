@@ -314,7 +314,7 @@ Message format one line per json message:
   ```
   res:
   ```json
-  "ok"
+  "ok|notEnough"
   ```
   req:
   ```json

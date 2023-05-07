@@ -32,7 +32,8 @@ pub async fn handler(
                 .get_accounts()
                 .get(&user_id.id)
                 .ok_or("Invalid account")?;
-            account
+
+            let enough = account
                 .write()
                 .dl("o37")
                 .await
@@ -43,6 +44,10 @@ pub async fn handler(
                     price,
                 })
                 .await?;
+            if !enough {
+                return Ok(r#""notEnough""#.to_owned());
+            }
+
             let global = Arc::clone(global);
             let user_id = user_id.clone();
             tokio::spawn(async move {

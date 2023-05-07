@@ -188,16 +188,32 @@ impl State {
     }
 
     pub async fn commit_pending(&mut self, trade_id: TradeID) -> GResult<()> {
-        let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
+        let user_id = self
+            .pending_to_user
+            .remove(&trade_id)
+            .expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl("st193").await.commit_pending(trade_id).await?;
+        account
+            .write()
+            .dl("st193")
+            .await
+            .commit_pending(trade_id)
+            .await?;
         self.update_file().await
     }
 
     pub async fn abort_pending(&mut self, trade_id: TradeID) -> GResult<()> {
-        let user_id = self.pending_to_user.remove(&trade_id).expect("Non existent trade_id");
+        let user_id = self
+            .pending_to_user
+            .remove(&trade_id)
+            .expect("Non existent trade_id");
         let account = &self.accounts[&user_id];
-        account.write().dl("st200").await.abort_pending(trade_id).await?;
+        account
+            .write()
+            .dl("st200")
+            .await
+            .abort_pending(trade_id)
+            .await?;
         self.update_file().await
     }
 }
@@ -325,8 +341,8 @@ impl Account {
 
     pub fn get_buy_order_amount(&self) -> CentCount {
         self.buys
-            .iter()
-            .map(|(ticker, orders)| {
+            .values()
+            .map(|orders| {
                 orders
                     .iter()
                     .map(|(price, quantity)| price * quantity)
@@ -335,8 +351,13 @@ impl Account {
             .sum()
     }
 
-    pub fn get_sell_order_quantity(&self, ticker: Ticker) -> Quantity {
-        self.sells.entry(ticker).or_default().iter().map(|(_, quantity)| quantity).sum()
+    pub fn get_sell_order_quantity(&self, ticker: &Ticker) -> Quantity {
+        match self.sells.get(ticker) {
+            Some(s) => s,
+            None => return 0,
+        }
+        .values()
+        .sum()
     }
 
     /// Attempt to add order to the account
@@ -348,16 +369,34 @@ impl Account {
             quantity,
             price,
         }: OrderReq,
-    ) -> GResult<()> {
+    ) -> GResult<bool> {
+        // check if order can be added
+        match order_type {
+            OrderType::Buy => {
+                if self.balance - self.get_buy_order_amount() < quantity * price {
+                    // too many orders, not enough money
+                    return Ok(false);
+                }
+            }
+            OrderType::Sell => {
+                if *self.portfolio.get(&ticker).unwrap_or(&0)
+                    - self.get_sell_order_quantity(&ticker)
+                    < quantity
+                {
+                    // too many orders, not enough stock
+                    return Ok(false);
+                }
+            }
+        }
+
         let orders = match order_type {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,
         };
 
-        // TODO check if order can be adde
-
         *orders.entry(ticker).or_default().entry(price).or_default() += quantity;
-        self.update_file().await
+        self.update_file().await?;
+        Ok(true)
     }
 
     /// can come from trade request or cancel order
