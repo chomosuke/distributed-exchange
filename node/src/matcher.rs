@@ -130,16 +130,16 @@ impl Matcher {
     }
 
     /// create matches and add and return the remaining order
-    pub fn add_order(&mut self, order: Order) -> (Order, Vec<Trade>, Vec<Order>) {
+    pub fn add_order(&mut self, original_order: Order) -> (Order, Vec<Trade>, Vec<Order>) {
         let Order {
             order_type,
             ticker,
             user_id,
             quantity: mut to_deduct,
             price,
-        } = order.clone();
+        } = original_order.clone();
 
-        println!("Add {order:?}");
+        println!("Add {original_order:?}");
 
         // first match it with to_deduct
         let current_to_deduct = self
@@ -150,7 +150,7 @@ impl Matcher {
             .or_default()
             .entry(price)
             .or_default()
-            .entry(user_id.clone())
+            .entry(user_id)
             .or_default();
         let deductable = to_deduct.min(*current_to_deduct);
         to_deduct -= deductable;
@@ -174,15 +174,17 @@ impl Matcher {
         };
 
         'outer: for (other_price, existing_orders) in price_range {
-            for (other_user, quantity) in existing_orders.iter_mut().filter(|(other_user, _)| {
-                user_id.node_id == self.this_id || other_user.node_id == self.this_id
-            }) {
+            for (other_user, other_quantity) in
+                existing_orders.iter_mut().filter(|(other_user, _)| {
+                    user_id.node_id == self.this_id || other_user.node_id == self.this_id
+                })
+            {
                 let (buyer_id, seller_id, buy_price, sell_price) = match order_type {
-                    OrderType::Buy => (user_id.clone(), other_user.clone(), price, *other_price),
-                    OrderType::Sell => (other_user.clone(), user_id.clone(), *other_price, price),
+                    OrderType::Buy => (user_id, *other_user, price, *other_price),
+                    OrderType::Sell => (*other_user, user_id, *other_price, price),
                 };
                 let new_trade: Trade = Trade {
-                    quantity: min(to_deduct, *quantity),
+                    quantity: min(to_deduct, *other_quantity),
                     price: *other_price,
                     ticker: ticker.clone(),
                     buyer_id,
@@ -197,7 +199,7 @@ impl Matcher {
 
                 // report deducted local order
                 if other_user.node_id == self.this_id {
-                    *quantity -= new_trade.quantity;
+                    *other_quantity -= new_trade.quantity;
                     local_order_deducted.push(Order {
                         order_type: match order_type {
                             OrderType::Buy => OrderType::Sell,
@@ -205,8 +207,8 @@ impl Matcher {
                         },
                         ticker: new_trade.ticker.clone(),
                         quantity: new_trade.quantity,
-                        user_id: other_user.clone(),
-                        price: new_trade.price,
+                        user_id: *other_user,
+                        price: *other_price,
                     });
                 }
 
@@ -230,7 +232,12 @@ impl Matcher {
             order_type,
             ticker,
             user_id,
-            quantity: to_deduct,
+            quantity: if user_id.node_id == self.this_id {
+                to_deduct
+            } else {
+                // NEVER deduct remote order they'll be deducted when offer is accepted
+                original_order.quantity
+            },
             price,
         };
         if remaining_order.quantity != 0 {
@@ -242,8 +249,11 @@ impl Matcher {
             .or_default()
             .entry(remaining_order.price)
             .or_default()
-            .push_back((remaining_order.user_id.clone(), remaining_order.quantity));
+            .push_back((remaining_order.user_id, remaining_order.quantity));
         }
+
+        println!("After Add {:?}", self.get_stats());
+
         (remaining_order, proposed_trades, local_order_deducted)
     }
 }

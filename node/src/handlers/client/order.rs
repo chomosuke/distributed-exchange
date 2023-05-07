@@ -49,7 +49,7 @@ pub async fn handler(
             }
 
             let global = Arc::clone(global);
-            let user_id = user_id.clone();
+            let user_id = *user_id;
             add_order_to_matcher_and_process(
                 Order {
                     order_type,
@@ -81,7 +81,7 @@ pub async fn handler(
                 Order {
                     order_type,
                     ticker,
-                    user_id: user_id.clone(),
+                    user_id: *user_id,
                     price,
                     quantity,
                 },

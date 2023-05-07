@@ -175,7 +175,7 @@ impl State {
                 let (mut local, remote) = if trade.buyer_id.node_id == self.id {
                     (
                         self.accounts[&trade.buyer_id.id].write().dl("st156").await,
-                        trade.seller_id.clone(),
+                        trade.seller_id,
                     )
                 } else {
                     assert_eq!(
@@ -184,7 +184,7 @@ impl State {
                     );
                     (
                         self.accounts[&trade.seller_id.id].write().dl("st165").await,
-                        trade.buyer_id.clone(),
+                        trade.buyer_id,
                     )
                 };
                 let trade_id = self.next_trade_id;
@@ -518,7 +518,7 @@ impl Account {
                 OrderType::Sell
             },
             ticker,
-            user_id: self.id.clone(),
+            user_id: self.id,
             price: order_price,
         }))
     }
@@ -645,7 +645,7 @@ impl Account {
         self.update_file().await?;
         Ok(Order {
             price,
-            user_id: self.id.clone(),
+            user_id: self.id,
             order_type,
             quantity,
             ticker,
