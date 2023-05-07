@@ -28,7 +28,6 @@ impl ReadWriter {
     }
 
     pub async fn write_line(&mut self, s: &str) -> GResult<()> {
-        println!("write_line: {s}");
         self.writer.write_all(s.as_bytes()).await?;
         self.writer.write_u8(b'\n').await?;
         self.writer.flush().await?;
