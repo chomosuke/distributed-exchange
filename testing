@@ -15,7 +15,5 @@
 { "type": "D account" }
 
 TODO broadcast trade confirmed to every matcher
-TODO decline order if not enough balance or stock
-
 
 { "type": "U balance", "value": 1000 }

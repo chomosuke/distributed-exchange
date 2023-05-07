@@ -26,10 +26,9 @@ pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> G
         .process_incoming_offer(trade)
         .await?;
 
-    // TODO broadcast accepted offer
     if accepted {
         // update the matcher to remove the order
-        // let matcher = global.matcher.write().await;
+        let matcher = global.matcher.write().await;
     }
 
     rw.write_line(&serde_json::to_string(&json!({

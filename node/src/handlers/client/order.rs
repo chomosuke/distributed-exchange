@@ -1,7 +1,7 @@
 use super::{Crud, Req, UserID};
 use crate::{
     matcher::Order,
-    process_order::{process_order, OrderOrigin},
+    order::{process_order, OrderOrigin},
     Global,
 };
 use lib::{interfaces::OrderReq, lock::DeadLockDetect, GResult};
@@ -76,9 +76,13 @@ pub async fn handler(
             let mut account = account.write().dl("o71").await;
             let quantity = account.deduct_order(order.clone()).await?;
             let OrderReq { order_type, ticker, price, .. } = order;
+
+
             global.matcher.write().dl("o74").await.deduct_order(Order {
                 order_type, ticker, user_id: user_id.clone(), price, quantity,
             }).expect("Matcher account out of sync!");
+
+
             Ok(quantity.to_string())
         }
         _ => Err(Box::from(format!("Can not {crud:?} order."))),
