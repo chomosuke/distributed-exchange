@@ -91,27 +91,36 @@ async fn main() {
 
 // actions when not logged in
 fn print_actions() {
-    println!("\nChoose an action:");
-    println!("  c                Create a new account");
-    println!("  l <account_id>   Login with your Account ID");
-    println!("  q                Exit the application");
+    print!(
+        r#"
+Choose an action:
+  c                Create a new account
+  l <account_id>   Login with your Account ID
+  q                Exit the application
+"#
+    );
 }
 
 // actions when logged in to a user account
 fn print_account_actions(account_id: &String) {
-    println!("\nHello, User {}", account_id);
-    println!("\nChoose an action:");
-    println!("  b <ticker> <price> <quantity>  Submit a buy order");
-    println!("  s <ticker> <price> <quantity>  Submit a sell order");
-    println!("  c <ticker> <price> <quantity>  Cancel an order");
-    println!("  o                              View your submitted orders");
-    println!("  a                              View current account details");
-    println!("  p                              View current stock prices");
-    println!("  d <amount>                     Deposit cash");
-    println!("  w <amount>                     Withdraw cash");
-    // println!("  i <ticker> <quantity>          IPO new stock");
-    println!("  !                              Delete your account permanently");
-    println!("  q                              Exit the application");
+    print!(
+        r#"
+Hello, User {account_id}
+
+Choose an action:
+  b <ticker> <price> <quantity>  Submit a buy order
+  s <ticker> <price> <quantity>  Submit a sell order
+  c <ticker> <price> <quantity>  Cancel an order
+  o                              View your submitted orders
+  a                              View current account details
+  p                              View current stock prices
+  d <amount>                     Deposit cash
+  w <amount>                     Withdraw cash
+  i <ticker> <quantity>          IPO new stock
+  !                              Delete your account permanently
+  q                              Exit the application
+"#
+    );
 }
 
 async fn connect_to_server(ip_port: &SocketAddr) -> ReadWriter {
