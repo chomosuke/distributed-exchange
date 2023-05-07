@@ -1,6 +1,6 @@
-use super::{Req, UserID, Crud};
+use super::{Crud, Req, UserID};
 use crate::Global;
-use lib::{GResult, lock::DeadLockDetect};
+use lib::{lock::DeadLockDetect, GResult};
 use std::sync::Arc;
 
 pub async fn handler(
@@ -18,8 +18,12 @@ pub async fn handler(
         Crud::Update => {
             let mut account = account.write().dl("19").await;
             let new_balance = value.as_ref().and_then(|v| v.as_u64()).ok_or("Bad value")?;
-            account.set_balance(new_balance).await?;
-            Ok("\"ok\"".to_string())
+            let empty = account.set_balance(new_balance).await?;
+            if empty {
+                Ok("\"ok\"".to_string())
+            } else {
+                Ok("\"notEmpty\"".to_string())
+            }
         }
         _ => Err(Box::from(format!("Can not {crud:?} balance."))),
     }

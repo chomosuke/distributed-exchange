@@ -302,9 +302,14 @@ impl Account {
         self.balance
     }
 
-    pub async fn set_balance(&mut self, value: u64) -> GResult<()> {
-        self.balance = value;
-        self.update_file().await
+    pub async fn set_balance(&mut self, value: u64) -> GResult<bool> {
+        if value < self.get_buy_order_amount() {
+            Ok(false)
+        } else {
+            self.balance = value;
+            self.update_file().await?;
+            Ok(true)
+        }
     }
 
     pub fn get_portfolio(&self) -> &HashMap<Ticker, Quantity> {

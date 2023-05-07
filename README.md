@@ -247,7 +247,7 @@ Message format one line per json message:
   ```
   res:
   ```json
-  "ok"
+  "ok|notEmpty"
   ```
 - CR for stocks in account.
 

@@ -17,7 +17,7 @@ pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Globa
         // Send the order
         for (_, node) in global.others.read().dl("pr17").await.iter() {
             match node {
-                crate::Node::DisConnected(_) => todo!(),
+                crate::Node::DisConnected(addr) => todo!("{addr}"),
                 crate::Node::Connected { sender } => {
                     sender.send(Message::Order(remaining_order.clone()))?
                 }
@@ -44,7 +44,7 @@ pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Globa
             .get(&node_id)
             .expect("Bad node_id for trade offer")
         {
-            crate::Node::DisConnected(_) => todo!(),
+            crate::Node::DisConnected(addr) => todo!("{addr}"),
             crate::Node::Connected { sender } => sender.send(Message::Offer(trade))?,
         }
     }
