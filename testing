@@ -1,15 +1,18 @@
 { "type": "U balance", "value": 10000 }
-
 { "type": "C stock", "value": { "ticker_id": "AMD", "quantity": 1000 } }
-{ "type": "C stock", "value": { "ticker_id": "Intel", "quantity": 1000 } }
-
 { "type": "C order", "value": { "order_type": "sell", "ticker": "AMD", "price": 125, "quantity": 100 } }
-{ "type": "C order", "value": { "order_type": "sell", "ticker": "Intel", "price": 150, "quantity": 100 } }
-{ "type": "C order", "value": { "order_type": "buy", "ticker": "AMD", "price": 125, "quantity": 100 } }
 { "type": "C order", "value": { "order_type": "buy", "ticker": "Intel", "price": 150, "quantity": 100 } }
+
+{ "type": "U balance", "value": 10000 }
+{ "type": "C stock", "value": { "ticker_id": "Intel", "quantity": 1000 } }
+{ "type": "C order", "value": { "order_type": "sell", "ticker": "Intel", "price": 250, "quantity": 100 } }
+{ "type": "C order", "value": { "order_type": "buy", "ticker": "AMD", "price": 125, "quantity": 100 } }
 
 { "type": "R balance" }
 { "type": "R stock" }
 { "type": "R market" }
 { "type": "R order" }
 { "type": "D account" }
+
+TODO broadcast trade confirmed to every matcher
+TODO decline order if not enough balance or stock

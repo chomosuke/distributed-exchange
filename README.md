@@ -369,3 +369,9 @@ Message format one line per json message:
   ```
 
 ### Coordinator failure
+TODO
+
+## Architecture
+- Matcher: one on each node, responsible for matching order where one of the seller or buyer belong to this node.
+- Accounts: source of truth, responsible for recording orders, balance, portfolio and stocks.
+- There can not be more order than balance / stock in portfolio.

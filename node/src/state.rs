@@ -323,6 +323,7 @@ impl Account {
         Ok(deducted)
     }
 
+    /// Attempt to add order to the account
     pub async fn add_order(
         &mut self,
         OrderReq {
@@ -336,6 +337,8 @@ impl Account {
             OrderType::Buy => &mut self.buys,
             OrderType::Sell => &mut self.sells,
         };
+
+        // TODO check if order can be adde
 
         *orders.entry(ticker).or_default().entry(price).or_default() += quantity;
         self.update_file().await
@@ -363,6 +366,7 @@ impl Account {
         Ok(deducted)
     }
 
+    /// accept or reject a trade offer, modifying to account in case accepted
     pub async fn process_incoming_offer(&mut self, trade: Trade) -> GResult<bool> {
         let Trade {
             quantity,

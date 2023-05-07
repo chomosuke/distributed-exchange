@@ -99,6 +99,7 @@ impl Matcher {
         Err(to_deduct)
     }
 
+    /// create matches and add and return the remaining order
     pub fn add_order(
         &mut self,
         Order {
@@ -128,12 +129,16 @@ impl Matcher {
             for (other_user, quantity) in existing_orders.iter_mut().filter(|(other_user, _)| {
                 user_id.node_id == self.this_id || other_user.node_id == self.this_id
             }) {
+                let (buyer_id, seller_id) = match order_type {
+                    OrderType::Buy => (user_id.clone(), other_user.clone()),
+                    OrderType::Sell => (other_user.clone(), user_id.clone()),
+                };
                 let new_trade: Trade = Trade {
                     quantity: min(to_deduct, *quantity),
                     price: *other_price,
                     ticker: ticker.clone(),
-                    buyer_id: user_id.clone(),
-                    seller_id: other_user.clone(),
+                    buyer_id,
+                    seller_id,
                 };
 
                 *quantity -= new_trade.quantity;
@@ -156,6 +161,7 @@ impl Matcher {
             existing_orders.pop_first();
         }
 
+        // Not all matches, add to own and return to be maybe broadcasted
         let remaining_order = Order {
             order_type,
             ticker,

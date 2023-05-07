@@ -4,6 +4,7 @@ use lib::{lock::DeadLockDetect, GResult, read_writer::ReadWriter};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
+/// recieved a trade offer
 pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> GResult<()> {
     let Offer { id, trade } = serde_json::from_value(req)?;
     let state = global.state.read().dl("of9").await;
@@ -24,6 +25,13 @@ pub async fn handler(req: Value, rw: &mut ReadWriter, global: &Arc<Global>) -> G
         .await
         .process_incoming_offer(trade)
         .await?;
+
+    // TODO broadcast accepted offer
+    if accepted {
+        // update the matcher to remove the order
+        // let matcher = global.matcher.write().await;
+    }
+
     rw.write_line(&serde_json::to_string(&json!({
         "type": "reply",
         "value": OfferReply {

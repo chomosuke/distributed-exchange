@@ -8,6 +8,7 @@ pub enum OrderOrigin {
     Outgoing,
 }
 
+/// add order to the matcher and process the matches
 pub async fn process_order(order: Order, origin: OrderOrigin, global: &Arc<Global>) -> GResult<()> {
     let mut matcher = global.matcher.write().dl("pr12").await;
     let (remaining_order, matches) = matcher.add_order(order);
