@@ -404,6 +404,13 @@ dependencies = [
 [[package]]
 name = "tests"
 version = "0.1.0"
+dependencies = [
+ "lib",
+ "serde",
+ "serde_json",
+ "structopt",
+ "tokio",
+]
 
 [[package]]
 name = "textwrap"
