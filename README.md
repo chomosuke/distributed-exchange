@@ -12,6 +12,8 @@
 
 ## Running instructions
 
+- Refresh the directories:
+  `./refresh_dirs.sh`
 - Launch a single coordinator:
   `cargo run -p coordinator -- -p <port>`
 - Launch at least 2 market database servers:
@@ -21,14 +23,14 @@
 
 ### Running example
 
-- Terminal 1:
-  `cargo run -p coordinator -- -p 8000`
+- Any terminal: `./refresh_dirs.sh`
+- Terminal 1  `./run_coord.sh`
 - Terminal 2:
-  `cargo run -p node -- -c 127.0.0.1:8000 -p 8001`
+  `cargo run -p node -- -a 127.0.0.1:8001 -c 127.0.0.1:8000 -p ./node1/`
 - Terminal 3:
-  `cargo run -p node -- -c 127.0.0.1:8000 -p 8002`
+  `cargo run -p node -- -a 127.0.0.1:8002 -c 127.0.0.1:8000 -p ./node2/`
 - Terminals 4 and 5:
-  `cargo run -p client -- -c 127.0.0.1:8000`
+  `./run_client.sh`
 
 ## Approaches
 
